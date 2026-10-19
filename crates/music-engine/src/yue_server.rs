@@ -341,6 +341,9 @@ impl YueServerSupervisor {
         }
 
         let mut command = Command::new(&self.config.executable);
+        if let Some(path) = music_core::process::own_libraries_first(&self.config.executable) {
+            command.env("LD_LIBRARY_PATH", path);
+        }
         command.args(self.config.arguments());
         match self.config.cuda_backend()? {
             Some(backend) => {
