@@ -4,6 +4,8 @@
 
 ## Zmiany względem oryginalnego programu
 
+Zmiany wprowadziłem, aby YuE2 Studio było bardziej przyjazne dla komputerów bez wydajnych kart graficznych oraz z małą ilością miejsca na dysku.
+
 ### Debian i Linux
 
 - Dodałem budowanie i instalowanie pakietu `.deb` oraz skrypt uruchamiający studio na Debianie.
