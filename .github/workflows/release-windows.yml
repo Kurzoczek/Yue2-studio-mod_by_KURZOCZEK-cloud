@@ -34,12 +34,19 @@ jobs:
           workspaces: |
             . -> target
             desktop/src-tauri -> target
-      - name: Verify the Windows Vulkan toolchain
+      - name: Install the pinned Vulkan SDK
         shell: pwsh
         run: |
-          if (-not $env:VULKAN_SDK -or -not (Test-Path (Join-Path $env:VULKAN_SDK 'Include\vulkan\vulkan.h')) -or -not (Get-Command glslc -ErrorAction SilentlyContinue)) {
-            throw 'The Windows runner needs the Vulkan SDK, including headers and glslc.'
+          choco install vulkan-sdk --version=1.4.363.1 --yes --no-progress
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Could not install the pinned Vulkan SDK.'
           }
+          $sdk = 'C:\VulkanSDK\1.4.363.1'
+          if (-not (Test-Path (Join-Path $sdk 'Include\vulkan\vulkan.h')) -or -not (Test-Path (Join-Path $sdk 'Bin\glslc.exe'))) {
+            throw "The Vulkan SDK installation is incomplete at $sdk."
+          }
+          "VULKAN_SDK=$sdk" >> $env:GITHUB_ENV
+          "$sdk\Bin" >> $env:GITHUB_PATH
       - name: Build, test, and sign the installer
         shell: pwsh
         env:
