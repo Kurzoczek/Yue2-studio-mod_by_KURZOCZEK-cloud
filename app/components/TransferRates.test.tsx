@@ -19,7 +19,7 @@ it('shows the download speed and what each disk reads and writes, asked again ea
   let download = 2_500_000;
   const requests = vi.fn(async () => Response.json({
     download_bytes_per_second: download,
-    disks: [{ device: 'sdb1', mount: '/media/lukasz/Nowy', file_system: 'ntfs3', folders: ['music-engines', 'music-models'], read_bytes_per_second: 0, write_bytes_per_second: 24_000_000 }],
+    disks: [{ device: 'sdb1', mount: '/media/kurzoczek/Nowy', file_system: 'ntfs3', folders: ['music-engines', 'music-models'], read_bytes_per_second: 0, write_bytes_per_second: 24_000_000 }],
   }));
   vi.stubGlobal('fetch', requests);
   const host = document.createElement('div');
@@ -27,7 +27,7 @@ it('shows the download speed and what each disk reads and writes, asked again ea
   try {
     await act(async () => root.render(<TransferRates />));
     expect(host.querySelector('[data-testid="rate-download"]')!.textContent).toBe('2,5 MB/s');
-    expect(host.textContent).toContain('/media/lukasz/Nowy');
+    expect(host.textContent).toContain('/media/kurzoczek/Nowy');
     expect(host.textContent).toContain('dbRatesWrite 24 MB/s');
     download = 0;
     await act(async () => { vi.advanceTimersByTime(1000); });

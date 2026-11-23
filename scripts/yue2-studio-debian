@@ -9,7 +9,7 @@
 # Ustawienia -> Pamięć / Procesor (silnik YuE2 dostaje je przy każdym starcie).
 
 if [ "$(id -u)" -eq 0 ]; then
-  echo "YuE2 Studio nie powinno działać jako root. Uruchom je jako zwykły użytkownik (np. lukasz)." >&2
+  echo "YuE2 Studio nie powinno działać jako root. Uruchom je jako zwykły użytkownik (np. kurzoczek)." >&2
   exit 1
 fi
 

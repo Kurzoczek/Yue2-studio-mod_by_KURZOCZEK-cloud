@@ -188,15 +188,15 @@ mod tests {
 
     #[test]
     fn a_mount_line_gives_its_place_source_and_file_system() {
-        let line = r"36 25 8:17 / /media/lukasz/Nowy\040dysk rw,nosuid,nodev,relatime shared:1 - ntfs3 /dev/sdb1 rw,uid=1000";
+        let line = r"36 25 8:17 / /media/kurzoczek/Nowy\040dysk rw,nosuid,nodev,relatime shared:1 - ntfs3 /dev/sdb1 rw,uid=1000";
         let mount = parse_mount(line).unwrap();
-        assert_eq!(mount.point, PathBuf::from("/media/lukasz/Nowy dysk"));
+        assert_eq!(mount.point, PathBuf::from("/media/kurzoczek/Nowy dysk"));
         assert_eq!((mount.source.as_str(), mount.file_system.as_str()), ("/dev/sdb1", "ntfs3"));
         let mounts = [
             Mount { point: "/".into(), source: "/dev/mmcblk0p2".into(), file_system: "btrfs".into() },
             mount,
         ];
-        let inside = mounts.iter().filter(|m| Path::new("/media/lukasz/Nowy dysk/Modele").starts_with(&m.point)).max_by_key(|m| m.point.as_os_str().len()).unwrap();
+        let inside = mounts.iter().filter(|m| Path::new("/media/kurzoczek/Nowy dysk/Modele").starts_with(&m.point)).max_by_key(|m| m.point.as_os_str().len()).unwrap();
         assert_eq!(inside.source, "/dev/sdb1", "the longest mount point a path is in");
     }
 
