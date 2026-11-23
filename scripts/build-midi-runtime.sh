@@ -5,6 +5,11 @@
 # and `music-caption`, with their ggml libraries, into OUTPUT_DIRECTORY.
 set -euo pipefail
 
+if [ "$(id -u)" -eq 0 ]; then
+    echo "[ERROR] run this build as an unprivileged user" >&2
+    exit 1
+fi
+
 output="${1:?usage: build-midi-runtime.sh OUTPUT_DIRECTORY}"
 root="$(cd "$(dirname "$0")/.." && pwd)"
 deployment_target="${MACOSX_DEPLOYMENT_TARGET:-$(node -p 'require(process.argv[1]).bundle.macOS.minimumSystemVersion' "$root/desktop/src-tauri/tauri.macos-release.conf.json")}"

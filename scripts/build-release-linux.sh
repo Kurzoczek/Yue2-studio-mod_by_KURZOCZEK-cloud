@@ -3,6 +3,11 @@
 # yue2.cpp engine on Vulkan and CUDA 13 and the audio-to-MIDI transcriber bundled. Model weights are downloaded in the app.
 set -euo pipefail
 
+if [ "$(id -u)" -eq 0 ]; then
+    echo "[ERROR] run this build as an unprivileged user; only dependency installation needs administrator privileges" >&2
+    exit 1
+fi
+
 root="$(cd "$(dirname "$0")/.." && pwd)"
 # Optional runtime-only cache for offline setup. Its contents stay outside the installer.
 node "$root/scripts/check-native-runtime-cache.mjs"

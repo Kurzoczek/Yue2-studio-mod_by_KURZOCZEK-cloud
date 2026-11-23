@@ -18,6 +18,7 @@ log() { echo; echo "[$(date +%H:%M:%S)] $*"; }
 
 # ======================= ETAP UŻYTKOWNIKA (bez roota) =======================
 if [ "${1:-}" = "--as-user" ]; then
+  [ "$(id -u)" -ne 0 ] || { echo "[BŁĄD] etap budowania musi działać jako zwykły użytkownik, nie root." >&2; exit 1; }
   cd "$SRC"
   export CARGO_HOME="$WORK/cargo" RUSTUP_HOME="$WORK/rustup" npm_config_cache="$WORK/npm-cache"
   export TMPDIR="$WORK/tmp" YUE_ENGINE_BUILD_ROOT="$WORK/engines" CARGO_TARGET_DIR="$WORK/target"

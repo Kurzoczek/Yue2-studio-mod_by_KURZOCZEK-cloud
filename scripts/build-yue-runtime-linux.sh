@@ -6,6 +6,11 @@
 # ($ORIGIN), wherever the package puts them.
 set -euo pipefail
 
+if [ "$(id -u)" -eq 0 ]; then
+    echo "[ERROR] run this build as an unprivileged user" >&2
+    exit 1
+fi
+
 destination="$(realpath -m "${1:?usage: build-yue-runtime-linux.sh OUTPUT_DIRECTORY}")"
 [[ "$destination" != / ]] || { echo "[ERROR] runtime output must be a dedicated directory" >&2; exit 1; }
 root="$(cd "$(dirname "$0")/.." && pwd)"

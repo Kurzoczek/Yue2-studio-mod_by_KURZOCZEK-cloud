@@ -8,6 +8,11 @@
 # beside the binary ($ORIGIN), wherever the package puts them.
 set -euo pipefail
 
+if [ "$(id -u)" -eq 0 ]; then
+    echo "[ERROR] run this build as an unprivileged user" >&2
+    exit 1
+fi
+
 output="${1:?usage: build-midi-runtime-linux.sh OUTPUT_DIRECTORY}"
 root="$(cd "$(dirname "$0")/.." && pwd)"
 source_file="$root/engines/music-midi-source.json"

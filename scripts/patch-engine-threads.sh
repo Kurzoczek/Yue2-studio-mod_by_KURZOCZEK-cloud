@@ -6,6 +6,12 @@
 #   brak zmiennej         -> wszystkie rdzenie.
 # Użycie: patch-engine-threads.sh <katalog źródeł silnika>
 set -euo pipefail
+
+if [ "$(id -u)" -eq 0 ]; then
+    echo "[BŁĄD] Uruchom poprawkę jako zwykły użytkownik, nie root." >&2
+    exit 1
+fi
+
 src="${1:?użycie: patch-engine-threads.sh KATALOG_ŹRÓDEŁ}"
 header="$src/src/backend.h"
 if [ ! -f "$header" ]; then
