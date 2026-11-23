@@ -8,6 +8,8 @@
 
 Zmiany wprowadziłem, aby YuE2 Studio było bardziej przyjazne dla komputerów bez wydajnych kart graficznych oraz z małą ilością miejsca na dysku.
 
+Dostęp do tego forka i jego usług może podlegać obowiązującym przepisom prawa oraz sankcjom mającym zastosowanie do kraju użytkownika.
+
 ### Debian i Linux
 
 - Dodałem budowanie i instalowanie pakietu `.deb` oraz skrypt uruchamiający studio na Debianie.
@@ -47,6 +49,8 @@ Zmiany wprowadziłem, aby YuE2 Studio było bardziej przyjazne dla komputerów b
 ### Changes from the original program
 
 I made these changes to make YuE2 Studio more accessible on computers without powerful graphics cards and with limited disk space.
+
+Access to this fork and its services may be subject to applicable laws and sanctions, including those that apply in the user's country.
 
 #### Debian and Linux
 
@@ -88,6 +92,8 @@ I made these changes to make YuE2 Studio more accessible on computers without po
 
 这些更改旨在让没有高性能显卡、磁盘空间有限的电脑也能更方便地使用 YuE2 Studio。
 
+访问此分支版本及其服务可能受适用法律和制裁限制，包括适用于用户所在国家或地区的限制。
+
 #### Debian 和 Linux
 
 - 添加了用于构建和安装 `.deb` 软件包以及在 Debian 上启动工作室的脚本。
@@ -127,6 +133,8 @@ I made these changes to make YuE2 Studio more accessible on computers without po
 ### オリジナル版からの変更点
 
 高性能なグラフィックカードがないパソコンや、ディスク容量が少ない環境でも YuE2 Studio を使いやすくするために変更を加えました。
+
+このフォークおよびそのサービスへのアクセスは、適用される法律や制裁（ユーザーの所在国に適用されるものを含む）に従って制限される場合があります。
 
 #### Debian と Linux
 
@@ -168,6 +176,8 @@ I made these changes to make YuE2 Studio more accessible on computers without po
 
 고성능 그래픽 카드가 없거나 디스크 공간이 부족한 컴퓨터에서도 YuE2 Studio를 더 편리하게 사용할 수 있도록 변경했습니다.
 
+이 포크와 서비스에 대한 접근은 사용자 국가에 적용되는 제한을 포함해 관련 법률과 제재의 적용을 받을 수 있습니다.
+
 #### Debian 및 Linux
 
 - Debian용 `.deb` 패키지를 빌드·설치하고 스튜디오를 실행하는 스크립트를 추가했습니다.
@@ -208,6 +218,8 @@ I made these changes to make YuE2 Studio more accessible on computers without po
 
 Я внес эти изменения, чтобы YuE2 Studio было удобнее использовать на компьютерах без мощной видеокарты и с небольшим дисковым пространством.
 
+Доступ к этому форку и его сервисам может регулироваться применимыми законами и санкциями, включая ограничения, действующие в стране пользователя.
+
 #### Debian и Linux
 
 - Добавлены скрипты сборки и установки пакета `.deb`, а также запуска студии в Debian.
@@ -247,6 +259,8 @@ I made these changes to make YuE2 Studio more accessible on computers without po
 ### Alterações em relação ao programa original
 
 Fiz estas alterações para tornar o YuE2 Studio mais acessível em computadores sem placas gráficas potentes e com pouco espaço em disco.
+
+O acesso a este fork e aos respetivos serviços pode estar sujeito à legislação e às sanções aplicáveis, incluindo as que se aplicam no país do utilizador.
 
 #### Debian e Linux
 
