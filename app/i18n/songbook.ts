@@ -10,6 +10,13 @@ const en = {
 
 export const songbookStrings: Record<Language, typeof en> = {
   en,
+  pl: {
+    title: 'Śpiewnik', transpose: 'Transpozycja (półtony)', capo: 'Próg kapodastra', instrument: 'Chwyty akordów',
+    guitar: 'Gitara', ukulele: 'Ukulele', numbered: 'Zapis cyfrowy (jianpu)', print: 'Drukuj A4',
+    close: 'Zamknij śpiewnik', key: 'Tonacja', unavailable: 'Nie udało się otworzyć tych nut.',
+    lyricLanguage: 'Język tekstu', approximate: 'Szacowane dopasowanie tekstu do nut',
+    unaligned: 'Tekst bez dopasowania do nut', noShape: 'Brak obsługiwanego chwytu dla',
+  },
   ru: {
     title: 'Песенник', transpose: 'Транспозиция (полутоны)', capo: 'Лад каподастра', instrument: 'Аппликатуры',
     guitar: 'Гитара', ukulele: 'Укулеле', numbered: 'Цифровая нотация (цзяньпу)', print: 'Печать A4',

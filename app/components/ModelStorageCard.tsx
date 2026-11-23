@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { FolderCog, Loader2, RotateCcw, X } from 'lucide-react';
+import { FolderCog, FolderSearch, Loader2, RotateCcw, X } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
 import type { TranslationKey } from '../i18n/translations';
 import { apiUrl } from '../services/apiBase';
 
-interface FolderUse { name: string; bytes: number; elsewhere: boolean }
+interface FolderUse { name: string; bytes: number; elsewhere: boolean; location?: string }
 interface Storage {
   directory: string;
   chosen: string | null;
@@ -24,7 +24,7 @@ interface Move {
   error: string | null;
   engine_error: string | null;
 }
-interface Picked { path: string; directory: string; free_bytes: number; copy_bytes: number }
+interface Picked { path: string; directory: string; free_bytes: number; copy_bytes: number; folder?: string | null }
 
 const OUTLINE =
   'inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:border-pink-400 hover:text-pink-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/15 dark:text-zinc-200';
@@ -78,18 +78,23 @@ export const ModelStorageCard: React.FC = () => {
     }
   };
 
-  const choose = () => guarded(async () => {
+  /** Opens the folder dialog for all the downloads, or for one folder of them (`folder`) to go on its own. */
+  const choose = (folder?: string) => guarded(async () => {
     setAsking(true);
     try {
-      const body = await answer(await fetch(apiUrl('/v1/storage/pick'), { method: 'POST' }));
+      const init: RequestInit = folder
+        ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ folder }) }
+        : { method: 'POST' };
+      const body = await answer(await fetch(apiUrl('/v1/storage/pick'), init));
       if (body.picked === true) setPicked(body as unknown as Picked);
     } finally {
       setAsking(false);
     }
   });
 
-  const start = (directory: string | null) => guarded(async () => {
-    const body = await answer(await fetch(apiUrl('/v1/storage'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ directory }) }));
+  const start = (directory: string | null, folder?: string | null) => guarded(async () => {
+    const request = folder ? { directory, folders: [folder] } : { directory };
+    const body = await answer(await fetch(apiUrl('/v1/storage'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request) }));
     setPicked(null);
     setMove(body.move as Move);
     if ((body.move as Move).running !== true) await load();
@@ -105,6 +110,8 @@ export const ModelStorageCard: React.FC = () => {
   const tight = picked !== null && picked.free_bytes > 0 && picked.copy_bytes > picked.free_bytes;
   const went = move?.moved.filter(folder => !folder.error) ?? [];
   const stayed = move?.moved.filter(folder => folder.error) ?? [];
+  // every folder, also one with nothing in it yet: its place can be chosen before the download
+  const shown = storage.folders;
 
   return (
     <section className="mt-2 rounded-lg border border-zinc-200 p-3 text-xs dark:border-white/10" data-testid="model-storage">
@@ -113,7 +120,7 @@ export const ModelStorageCard: React.FC = () => {
       <p className="mt-0.5 text-zinc-500">
         {t('storageSpace').replace('{free}', size(storage.free_bytes)).replace('{total}', size(storage.total_bytes)).replace('{used}', size(storage.used_bytes))}
       </p>
-      <p className="mt-1.5 leading-5 text-zinc-500">{t('storageHint')}</p>
+      <p className="mt-1.5 leading-5 text-zinc-500">{t('dbStorageHint')}</p>
 
       {running && move && (
         <div className="mt-2">
@@ -136,14 +143,20 @@ export const ModelStorageCard: React.FC = () => {
       {!running && picked && (
         <div className="mt-2 rounded-lg border border-pink-500/30 bg-pink-500/5 p-2">
           <p className="break-all leading-5 text-zinc-700 dark:text-zinc-200">
-            {picked.copy_bytes > 0
-              ? t('storagePicked').replace('{folder}', picked.directory).replace('{copy}', size(picked.copy_bytes)).replace('{free}', size(picked.free_bytes))
-              : t('storagePickedSame').replace('{folder}', picked.directory)}
+            {picked.folder && storage.folders.some(folder => folder.name === picked.folder && folder.bytes === 0)
+              ? t('dbStoragePickedEmpty').replace('{name}', folderName(picked.folder)).replace('{folder}', picked.directory).replace('{free}', size(picked.free_bytes))
+              : picked.copy_bytes > 0
+              ? (picked.folder
+                ? t('dbStoragePickedOne').replace('{name}', folderName(picked.folder)).replace('{folder}', picked.directory).replace('{copy}', size(picked.copy_bytes)).replace('{free}', size(picked.free_bytes))
+                : t('storagePicked').replace('{folder}', picked.directory).replace('{copy}', size(picked.copy_bytes)).replace('{free}', size(picked.free_bytes)))
+              : (picked.folder
+                ? t('dbStoragePickedOneSame').replace('{name}', folderName(picked.folder)).replace('{folder}', picked.directory)
+                : t('storagePickedSame').replace('{folder}', picked.directory))}
           </p>
           {tight && <p className="mt-1 text-rose-600 dark:text-rose-300">{t('storageTight')}</p>}
           <div className="mt-2 flex justify-end gap-2">
             <button type="button" onClick={() => setPicked(null)} className={OUTLINE}><X size={13} />{t('cancel')}</button>
-            <button type="button" disabled={tight} onClick={() => void start(picked.path)} className={PRIMARY}>{t('storageMove')}</button>
+            <button type="button" disabled={tight} onClick={() => void start(picked.path, picked.folder)} className={PRIMARY}>{t('storageMove')}</button>
           </div>
         </div>
       )}
@@ -156,6 +169,34 @@ export const ModelStorageCard: React.FC = () => {
           {storage.chosen && (
             <button type="button" onClick={() => void start(null)} className={OUTLINE}><RotateCcw size={13} />{t('storageBack')}</button>
           )}
+        </div>
+      )}
+
+      {shown.length > 0 && (
+        <div className="mt-3 border-t border-zinc-200 pt-2 dark:border-white/10" data-testid="model-storage-folders">
+          <p className="font-semibold text-zinc-700 dark:text-zinc-200">{t('dbStorageEach')}</p>
+          <p className="mt-0.5 leading-5 text-zinc-500">{t('dbStorageEachHint')}</p>
+          <ul className="mt-1.5 space-y-1.5">
+            {shown.map(folder => (
+              <li key={folder.name} className="flex flex-wrap items-center justify-between gap-2">
+                <span className="min-w-0 flex-1">
+                  <span className="font-medium text-zinc-800 dark:text-zinc-100">{folderName(folder.name)}</span>
+                  <span className="ml-1.5 text-zinc-500">{folder.bytes > 0 ? size(folder.bytes) : t('dbStorageEmpty')}</span>
+                  <span className="block break-all font-mono text-[11px] text-zinc-500">{folder.elsewhere ? folder.location : t('dbStorageHere')}</span>
+                </span>
+                <span className="flex shrink-0 gap-1.5">
+                  <button type="button" disabled={running || asking} onClick={() => void choose(folder.name)} className={OUTLINE} data-testid={`storage-browse-${folder.name}`}>
+                    <FolderSearch size={13} />{t('dbSavingBrowse')}
+                  </button>
+                  {folder.elsewhere && (
+                    <button type="button" disabled={running} onClick={() => void start(null, folder.name)} className={OUTLINE} title={t('storageBack')}>
+                      <RotateCcw size={13} />{t('dbStorageBackOne')}
+                    </button>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

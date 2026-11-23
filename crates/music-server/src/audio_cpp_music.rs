@@ -360,7 +360,7 @@ pub(super) fn registered_model_ready(model: &ModelEntry) -> Option<bool> {
 }
 
 fn model_dir(root: &FsPath) -> PathBuf {
-    root.join("audiocpp/models").join(FAMILY)
+    crate::model_storage::under(root, "audiocpp/models").join(FAMILY)
 }
 
 pub(super) fn missing_files(path: &FsPath) -> Vec<&'static str> {

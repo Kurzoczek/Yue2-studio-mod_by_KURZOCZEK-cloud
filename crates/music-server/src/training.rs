@@ -490,7 +490,7 @@ fn trainer_source() -> &'static TrainerSource {
 /// transcriber are one build of one commit and share its ggml, so the training
 /// pack and Audio to MIDI download it once into the same folder.
 pub fn tools_root(data_root: &Path) -> PathBuf {
-    data_root.join("hotstep")
+    crate::model_storage::folder(data_root, "hotstep")
 }
 
 /// The prefix of a tools release's folder.
@@ -859,7 +859,8 @@ impl Training {
         let root = data_root.join("training");
         let _ = fs::create_dir_all(root.join("models/own"));
         let training = Self {
-            downloader: Downloader::with_runtimes(root.clone(), tools_root(data_root)),
+            // the shared tools are asked where they are each time: the HOT-Step folder may be kept elsewhere
+            downloader: Downloader::at_places(crate::downloads::Place::Fixed(root.clone()), crate::downloads::Place::download(data_root, "hotstep", "")),
             root,
             engine: engine.to_string(),
             active: RwLock::new(None),
@@ -2602,7 +2603,7 @@ mod tests {
         training.remove_older_trainers();
         assert!(old.exists(), "an unpacked marker alone cannot retire the previous runtime");
         crate::install_record::write(
-            &training.downloader.record_of(trainer), trainer.url, "", &[managed.clone()], training.downloader.root(),
+            &training.downloader.record_of(trainer), trainer.url, "", &[managed.clone()], &training.downloader.root(),
         ).unwrap();
 
         let restarted = Training::new(data.path(), "yue2");

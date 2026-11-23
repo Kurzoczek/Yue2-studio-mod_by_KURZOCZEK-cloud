@@ -1,3 +1,5 @@
+mod common;
+
 use std::{fs, io::Cursor, path::Path, time::Duration};
 
 use reqwest::{Client, RequestBuilder, StatusCode};
@@ -71,6 +73,7 @@ async fn audio_cpp_minimax_music3_generates_and_saves_q8_provenance() {
     .unwrap();
     let port = free_port().await;
     let mut studio = Command::new(env!("CARGO_BIN_EXE_music-server"))
+        .env("YUE_LOCAL_API_KEY", common::TEST_KEY)
         .env("YUE_STUDIO_PORT", port.to_string())
         .env("YUE_ENGINE_BIN", root.path().join("absent-yue-server"))
         .env("YUE_STUDIO_DATA_ROOT", &data)
@@ -82,7 +85,7 @@ async fn audio_cpp_minimax_music3_generates_and_saves_q8_provenance() {
         .kill_on_drop(true)
         .spawn()
         .unwrap();
-    let http = Client::builder()
+    let http = common::keyed()
         .no_proxy()
         .timeout(Duration::from_secs(10))
         .build()
@@ -258,7 +261,7 @@ async fn cancelled_audio_cpp_heartmula_worker_exits_before_the_next_song() {
     fs::write(root.path().join("audio-cpp-hold-next"), b"").unwrap();
 
     let port = free_port().await;
-    let http = Client::builder()
+    let http = common::keyed()
         .no_proxy()
         .timeout(Duration::from_secs(5))
         .build()
@@ -266,6 +269,7 @@ async fn cancelled_audio_cpp_heartmula_worker_exits_before_the_next_song() {
     let url = format!("http://127.0.0.1:{port}");
     let jobs = format!("{url}/v1/music/jobs");
     let mut studio = Command::new(env!("CARGO_BIN_EXE_music-server"))
+        .env("YUE_LOCAL_API_KEY", common::TEST_KEY)
         .env("YUE_STUDIO_PORT", port.to_string())
         .env("YUE_ENGINE_BIN", root.path().join("absent-yue-server"))
         .env("YUE_STUDIO_DATA_ROOT", &data)
@@ -417,6 +421,7 @@ async fn audio_cpp_vevo2_rejects_truncated_weights_and_sings_with_a_local_bundle
 
     let port = free_port().await;
     let mut studio = Command::new(env!("CARGO_BIN_EXE_music-server"))
+        .env("YUE_LOCAL_API_KEY", common::TEST_KEY)
         .env("YUE_STUDIO_PORT", port.to_string())
         .env("YUE_ENGINE_BIN", root.path().join("absent-yue-server"))
         .env("YUE_STUDIO_DATA_ROOT", &data)
@@ -426,7 +431,7 @@ async fn audio_cpp_vevo2_rejects_truncated_weights_and_sings_with_a_local_bundle
         .kill_on_drop(true)
         .spawn()
         .unwrap();
-    let http = Client::builder().no_proxy().build().unwrap();
+    let http = common::keyed().no_proxy().build().unwrap();
     let url = format!("http://127.0.0.1:{port}");
     let catalog = format!("{url}/v1/music/audio-cpp/models");
     let models = timeout(Duration::from_secs(30), async {
@@ -599,12 +604,13 @@ async fn exercise_generation(format: Option<&str>) {
     fs::create_dir(&data).unwrap();
     let (port, engine_port) = (free_port().await, free_port().await);
     let url = format!("http://127.0.0.1:{port}");
-    let http = Client::builder()
+    let http = common::keyed()
         .no_proxy()
         .timeout(Duration::from_secs(20))
         .build()
         .unwrap();
     let mut studio = Command::new(env!("CARGO_BIN_EXE_music-server"));
+    studio.env("YUE_LOCAL_API_KEY", common::TEST_KEY);
     studio
         .env("YUE_STUDIO_PORT", port.to_string())
         .env("YUE_ENGINE_PORT", engine_port.to_string())

@@ -1,0 +1,128 @@
+#!/bin/sh
+# Program uruchamiający YuE2 Studio na Debianie (instalowany jako /usr/local/bin/yue2-studio):
+#  - odmawia pracy jako root (studio zapisuje pliki i uruchamia programy na polecenie swojego API),
+#  - wyłącza telemetrię (DO_NOT_TRACK),
+#  - trzyma dane i modele (kilka-kilkanaście GB) na dysku iSCSI, nie na małym / - albo w folderze wybranym
+#    w Ustawieniach (przenosi je tam przy starcie, z paskiem postępu),
+#  - kieruje silnik na zintegrowany GPU Intel, a nie na programowy llvmpipe.
+# Limity procesora, RAM-u, rdzeni, priorytetu i ochronę przed przegrzaniem ustawia się w studiu:
+# Ustawienia -> Pamięć / Procesor (silnik YuE2 dostaje je przy każdym starcie).
+
+if [ "$(id -u)" -eq 0 ]; then
+  echo "YuE2 Studio nie powinno działać jako root. Uruchom je jako zwykły użytkownik (np. lukasz)." >&2
+  exit 1
+fi
+
+# Folder danych: zmienna YUE_STUDIO_DATA_ROOT, inaczej folder wybrany w Ustawieniach (zapisany w
+# ~/.config/yue2-studio/data-folder), inaczej domyślny.
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}/yue2-studio"
+first_line() { [ -r "$1" ] && head -n 1 "$1" | tr -d '\r'; }
+CHOSEN="$(first_line "$CONF/data-folder")"
+case "$CHOSEN" in /*) ;; *) CHOSEN="" ;; esac
+DATA="${YUE_STUDIO_DATA_ROOT:-${CHOSEN:-/mnt/iscsi/Modele_ai/yue2-studio}}"
+
+say() {   # komunikat w okienku (KDE) albo w terminalu
+  command -v kdialog >/dev/null 2>&1 && kdialog --title "YuE2 Studio" "$1" "$2" 2>/dev/null
+  echo "$2" >&2
+}
+
+# Przeniesienie folderu danych zaplanowane w Ustawieniach (Wszystko, co przechowuje studio -> Zmień folder).
+# Biblioteka to baza danych otwarta przez działające studio, więc przenosi się ją tutaj, przed startem.
+move_data() {
+  OLD="$1"; NEW="$2"
+  if [ -e "$NEW" ] && [ -n "$(ls -A "$NEW" 2>/dev/null)" ]; then
+    say --error "Folder $NEW nie jest pusty, więc dane studia nie zostały przeniesione. Wybierz w Ustawieniach pusty folder."
+    return 1
+  fi
+  if [ ! -d "$OLD" ] || [ -z "$(ls -A "$OLD" 2>/dev/null)" ]; then
+    mkdir -p "$NEW"; return $?       # nic do przeniesienia: studio zacznie w nowym folderze
+  fi
+  PARENT="$(dirname "$NEW")"
+  mkdir -p "$PARENT" || { say --error "Nie mogę utworzyć $PARENT."; return 1; }
+  rmdir "$NEW" 2>/dev/null
+  # ten sam dysk: zmiana nazwy, od razu
+  if [ "$(stat -c %d "$OLD")" = "$(stat -c %d "$PARENT")" ] && mv "$OLD" "$NEW" 2>/dev/null; then
+    return 0
+  fi
+  # inny dysk: kopia (bez właścicieli i uprawnień, których NTFS/exFAT nie mają), sprawdzenie, potem usunięcie starego
+  TOTAL=$(du -sb "$OLD" 2>/dev/null | cut -f1); [ -n "$TOTAL" ] && [ "$TOTAL" -gt 0 ] || TOTAL=1
+  mkdir -p "$NEW" || { say --error "Nie mogę utworzyć $NEW."; return 1; }
+  cp -R --no-dereference --preserve=timestamps "$OLD/." "$NEW/" 2>"$CONF/move-data.log" &
+  CP=$!
+  QDBUS="$(command -v qdbus6 || command -v qdbus || command -v qdbus-qt6 || true)"
+  BAR=""
+  if command -v kdialog >/dev/null 2>&1 && [ -n "$QDBUS" ]; then
+    BAR="$(kdialog --title "YuE2 Studio" --progressbar "Przenoszę dane studia do $NEW…" 100 2>/dev/null)"
+  else
+    echo "Przenoszę dane studia ($((TOTAL / 1000000)) MB) do $NEW…" >&2
+  fi
+  while kill -0 "$CP" 2>/dev/null; do
+    sleep 2
+    DONE=$(du -sb "$NEW" 2>/dev/null | cut -f1); PCT=$(( ${DONE:-0} * 100 / TOTAL )); [ "$PCT" -gt 99 ] && PCT=99
+    if [ -n "$BAR" ]; then
+      # shellcheck disable=SC2086
+      $QDBUS $BAR Set "" value "$PCT" >/dev/null 2>&1
+    else
+      printf '\r  %s%%' "$PCT" >&2
+    fi
+  done
+  wait "$CP"; RESULT=$?
+  # shellcheck disable=SC2086
+  [ -n "$BAR" ] && $QDBUS $BAR close >/dev/null 2>&1
+  # sprawdzenie: tyle samo plików i bajtów w plikach
+  count() { find "$1" -type f | wc -l; }
+  bytes() { find "$1" -type f -printf '%s\n' | awk '{s+=$1} END {print s+0}'; }
+  if [ "$RESULT" -ne 0 ] || [ "$(count "$OLD")" != "$(count "$NEW")" ] || [ "$(bytes "$OLD")" != "$(bytes "$NEW")" ]; then
+    rm -rf "$NEW"
+    say --error "Przenoszenie danych studia nie powiodło się (szczegóły: $CONF/move-data.log). Studio uruchomi się ze starym folderem: $OLD"
+    return 1
+  fi
+  rm -rf "$OLD"
+  return 0
+}
+
+if [ -z "${YUE_STUDIO_DATA_ROOT:-}" ]; then
+  TARGET="$(first_line "$CONF/move-data-to")"
+  if [ -n "$TARGET" ]; then
+    case "$DATA" in
+      /mnt/iscsi/*) mountpoint -q /mnt/iscsi || { say --error "Dysk iSCSI (/mnt/iscsi) nie jest zamontowany, a na nim są dane studia do przeniesienia."; exit 1; } ;;
+    esac
+    rm -f "$CONF/move-data-to"       # raz: nieudane przenoszenie nie powtarza się przy każdym starcie
+    case "$TARGET" in
+      /*) if move_data "$DATA" "$TARGET"; then
+            mkdir -p "$CONF" && printf '%s\n' "$TARGET" > "$CONF/data-folder.tmp" && mv "$CONF/data-folder.tmp" "$CONF/data-folder"
+            DATA="$TARGET"
+            say --passivepopup "Dane studia są teraz w $TARGET." 
+          fi ;;
+    esac
+  fi
+fi
+
+case "$DATA" in
+  /mnt/iscsi/*)
+    if ! mountpoint -q /mnt/iscsi; then
+      msg="Dysk iSCSI (/mnt/iscsi) nie jest zamontowany, a na nim są dane i modele YuE2 Studio."
+      command -v kdialog >/dev/null 2>&1 && kdialog --error "$msg" 2>/dev/null
+      echo "$msg" >&2
+      exit 1
+    fi ;;
+esac
+mkdir -p "$DATA" || exit 1
+
+export YUE_STUDIO_DATA_ROOT="$DATA"
+export YUE_STUDIO_LAUNCHER=1        # studio wie, że przeniesienie zaplanowane w Ustawieniach się odbędzie
+
+# yue2-studio --klucz : klucz lokalnego API (dla agentów, np. Claude Code); powstaje przy pierwszym starcie studia
+if [ "${1:-}" = "--klucz" ]; then
+  if [ -r "$DATA/local-api-key" ]; then cat "$DATA/local-api-key"; echo; exit 0; fi
+  echo "Klucza jeszcze nie ma — uruchom studio raz, potem powtórz." >&2; exit 1
+fi
+export DO_NOT_TRACK=1
+export GGML_VK_VISIBLE_DEVICES="${GGML_VK_VISIBLE_DEVICES:-0}"
+# Gdyby okno było puste/czarne (znany problem WebKitGTK z niektórymi sterownikami), odkomentuj:
+# export WEBKIT_DISABLE_DMABUF_RENDERER=1
+
+BIN=/usr/bin/YuE2-Studio
+[ -x "$BIN" ] || BIN="$(command -v YuE2-Studio || command -v yue2-studio-bin || true)"
+[ -n "$BIN" ] || { echo "Nie znalazłem programu YuE2-Studio — czy paczka .deb jest zainstalowana?" >&2; exit 1; }
+exec "$BIN" "$@"

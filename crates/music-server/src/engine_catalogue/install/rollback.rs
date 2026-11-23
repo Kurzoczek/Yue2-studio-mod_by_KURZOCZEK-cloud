@@ -9,7 +9,7 @@ pub(crate) struct Requested {
 async fn restore<P: Package>(state: &AppState, id: &str, request: Requested) -> Result<Selection> {
     ensure!(portable_name(id), "invalid package identifier");
     let data = update_data_root(state);
-    let root = data.join(P::FOLDER).join(id);
+    let root = crate::model_storage::folder(data, P::FOLDER).join(id);
     let lock = std::fs::OpenOptions::new()
         .write(true)
         .open(root.join("install.lock"))?;

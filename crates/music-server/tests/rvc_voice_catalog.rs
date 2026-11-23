@@ -1,3 +1,5 @@
+mod common;
+
 use std::{
     fs,
     io::{Cursor, Write},
@@ -6,7 +8,7 @@ use std::{
 
 use reqwest::{
     multipart::{Form, Part},
-    Client, StatusCode,
+    StatusCode,
 };
 use serde_json::{json, Value};
 use tokio::{
@@ -55,12 +57,13 @@ async fn imports_rvc_checkpoint_and_optional_index_through_the_catalog() {
     let port = free_port().await;
     let base = format!("http://127.0.0.1:{port}");
     let url = format!("{base}/v1/rvc/voices");
-    let client = Client::builder()
+    let client = common::keyed()
         .no_proxy()
         .timeout(Duration::from_secs(10))
         .build()
         .unwrap();
     let mut studio = Command::new(env!("CARGO_BIN_EXE_music-server"))
+        .env("YUE_LOCAL_API_KEY", common::TEST_KEY)
         .env("YUE_STUDIO_PORT", port.to_string())
         .env("YUE_ENGINE_PORT", free_port().await.to_string())
         .env("YUE_STUDIO_DATA_ROOT", &data)

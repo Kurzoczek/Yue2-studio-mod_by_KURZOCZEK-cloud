@@ -91,6 +91,14 @@ fn legacy_ort_pin(record: &InstallRecord, url: &str) -> bool {
 /// records stored its absolute path, which still points to the previous Studio
 /// after moving or copying a portable installation.
 fn shared_tools(root: &Path) -> Option<PathBuf> {
+    // the studio's own Audio to MIDI folder may be kept elsewhere (Debian build), and so may HOT-Step's
+    if let Some(data_root) = crate::studio_data_root() {
+        for name in ["midi", "training"] {
+            if root == crate::model_storage::folder(&data_root, name) {
+                return Some(crate::model_storage::folder(&data_root, "hotstep"));
+            }
+        }
+    }
     match root.file_name()?.to_str()? {
         "training" | "midi" => Some(root.parent()?.join("hotstep")),
         _ => None,

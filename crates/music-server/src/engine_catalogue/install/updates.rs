@@ -41,7 +41,7 @@ async fn pending<P: Package>(
     candidate: &P,
     version: impl Fn(&P) -> &str,
 ) -> Result<Option<Update>> {
-    let dir = root.join(P::FOLDER).join(candidate.id());
+    let dir = crate::model_storage::folder(root, P::FOLDER).join(candidate.id());
     let selection = read_selection(&dir)?;
     let active = selection.active;
     if active.is_empty() {

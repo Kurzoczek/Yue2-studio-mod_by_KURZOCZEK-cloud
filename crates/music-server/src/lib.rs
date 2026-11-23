@@ -78,6 +78,7 @@ mod lyrics_sync;
 mod subimport;
 mod comfy_export;
 mod remote;
+pub use remote::{local_key as local_api_key, LOCAL_KEY_FILE as LOCAL_API_KEY_FILE};
 pub use remote::{set_asset_source, AssetSource};
 mod credentials;
 mod model_manager;
@@ -130,6 +131,12 @@ mod retired;
 mod update_screen;
 mod acpp;
 mod agent_use;
+// Debian: Settings -> Memory, Processor, Diagnostics and Save locations (ported from the Android app)
+pub mod governor;
+pub mod diagnostics_dump;
+pub mod save_locations;
+pub mod activity;
+pub mod data_folder;
 
 use song_errors::SongError;
 
@@ -629,6 +636,8 @@ struct MusicJob {
 impl MusicJob {
     /// Ends the job as failed, for this reason.
     fn fail(&mut self, error: SongError) {
+        // Settings -> Diagnostics: a state dump for a song that failed
+        diagnostics_dump::job_failed(&self.id, &error.to_string());
         self.status = MusicJobStatus::Failed;
         self.phase = MusicJobPhase::Failed;
         self.say(error);
@@ -1427,6 +1436,8 @@ impl EngineOptions {
             kv_q8,
             cuda_folder: self.cuda_build().map(hardware::CudaBuild::folder),
             extra_args: self.extra_args,
+            // filled in by the start itself (governor::engine_limits), not by every look at the options
+            limits: Default::default(),
         }
     }
 }
@@ -1618,13 +1629,24 @@ pub async fn serve_on_port(port: u16) -> anyhow::Result<()> {
         None => studio_log!("[ERROR] the studio has no data folder; its log goes to the console only"),
     }
     put_the_engine_folder_on_path();
+    // the local API key on disk from the start, so `--klucz` and agents can read it before the first request
+    let _ = remote::local_key();
+    // the resource governor's watchdog (CPU limit, overheating, RAM) and the diagnostics' marker of this run
+    governor::start(governor::Engine::Yue, music_engine::yue_server::startup_log_path());
     let proxy = persisted.as_ref().and_then(|settings| settings.proxy.clone()).unwrap_or_default();
     if let Err(error) = proxy.clone().validated() {
         eprintln!("[ERROR] the saved proxy cannot be used, requests go straight out until it is fixed in Settings: {error:#}");
     }
     net::set(proxy);
     let model_manager = ModelManager::from_environment()?;
-    let community_downloads = Arc::new(downloads::Downloader::new(model_manager.models_directory().join("own")));
+    // the community models live in the "models" download folder, wherever it is kept: asked each time
+    let community_downloads = Arc::new(match studio_data_root().filter(|_| std::env::var_os("YUE_MODELS_ROOT").is_none()) {
+        Some(data_root) => {
+            let own = downloads::Place::download(&data_root, "models", std::path::Path::new(model_manager::ENGINE_ID).join("own"));
+            downloads::Downloader::at_places(own.clone(), downloads::Place::download(&data_root, "models", std::path::Path::new(model_manager::ENGINE_ID).join("own").join("runtime")))
+        }
+        None => downloads::Downloader::new(model_manager.models_directory().join("own")),
+    });
     let persisted_components = persisted
         .as_ref()
         .and_then(|settings| settings.selected_component_ids.clone())
@@ -1656,7 +1678,7 @@ pub async fn serve_on_port(port: u16) -> anyhow::Result<()> {
         minimax: Arc::default(),
         minimax_cancellations: Arc::default(),
         signed_music_cancellations: Arc::default(),
-        hotstep_cover: Arc::new(downloads::Downloader::new(studio_data_root().unwrap_or_else(|| PathBuf::from(".")).join("hotstep"))),
+        hotstep_cover: Arc::new(downloads::Downloader::in_folder(&studio_data_root().unwrap_or_else(|| PathBuf::from(".")), "hotstep")),
         hotstep_sa3_install: Arc::default(),
         hotstep_minimax_install: Arc::default(),
         hotstep_ace_install: Arc::default(),
@@ -1874,6 +1896,14 @@ pub async fn serve_on_port(port: u16) -> anyhow::Result<()> {
         .route("/v1/music/native/acestep-cpp/profiles", get(ace_music_profiles))
         .route("/v1/engine/logs", get(engine_logs))
         .route("/v1/diagnostics", get(diagnostics::get))
+        .route("/v1/governor", get(governor_page).put(update_governor))
+        .route("/v1/state-dumps", get(state_dumps_page).put(update_state_dumps))
+        .route("/v1/state-dumps/now", post(state_dump_now))
+        .route("/v1/save-locations", get(save_locations_page).put(update_save_locations))
+        .route("/v1/transfer-rates", get(activity_now))
+        .route("/v1/data-folder", get(data_folder_status).put(plan_data_folder))
+        .route("/v1/data-folder/pick", post(pick_data_folder))
+        .route("/v1/save-locations/pick", post(pick_save_location))
         .route("/v1/diagnostics/report", post(diagnostics::make_report))
         .route("/v1/problem/preview", post(problem::preview))
         .route("/v1/problem/report", post(problem::report))
@@ -6268,6 +6298,154 @@ async fn test_proxy(Json(settings): Json<net::ProxySettings>) -> Result<Json<Val
     net::test(settings).await.map(Json).map_err(|error| api_error(StatusCode::BAD_REQUEST, format!("{error:#}")))
 }
 
+/// The studio closes on purpose (the desktop shell's exit): the next run is not an unexpected end.
+pub fn clean_exit() {
+    diagnostics_dump::mark_clean_exit();
+}
+
+async fn governor_page() -> Json<Value> {
+    Json(governor::page())
+}
+
+/// Settings -> Memory / Processor: saved, applied while the engine runs where it can be, else by a restart.
+async fn update_governor(State(state): State<AppState>, Json(request): Json<governor::Settings>) -> Result<Json<Value>, (StatusCode, Json<ApiError>)> {
+    let restart = governor::save(request).map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, format!("the settings were not saved: {error}")))?;
+    let mut restarted = false;
+    if restart && state.music_server.health().await {
+        let _restart = state.engine_use.write().await;
+        restart_engine(&state).await.map_err(|error| api_error(StatusCode::SERVICE_UNAVAILABLE, error))?;
+        restarted = true;
+    }
+    let mut page = governor::page();
+    page["engine_restarted"] = Value::Bool(restarted);
+    page["restart_needed"] = Value::Bool(restart && !restarted);
+    Ok(Json(page))
+}
+
+async fn state_dumps_page() -> Json<Value> {
+    Json(diagnostics_dump::page())
+}
+
+async fn update_state_dumps(Json(request): Json<diagnostics_dump::Settings>) -> Result<Json<Value>, (StatusCode, Json<ApiError>)> {
+    diagnostics_dump::save(request).map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, format!("the settings were not saved: {error}")))?;
+    Ok(Json(diagnostics_dump::page()))
+}
+
+async fn state_dump_now() -> Result<Json<Value>, (StatusCode, Json<ApiError>)> {
+    let path = tokio::task::spawn_blocking(diagnostics_dump::dump_now)
+        .await
+        .map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
+        .map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, error))?;
+    Ok(Json(serde_json::json!({ "path": path.display().to_string(), "page": diagnostics_dump::page() })))
+}
+
+async fn save_locations_page() -> Json<Value> {
+    Json(save_locations::page())
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+#[serde(default)]
+struct PickSaveLocation {
+    /// The kind of file the folder is for (`final`, `midi`...); empty: one folder for everything.
+    kind: String,
+    /// What the field holds now: the dialog opens there.
+    current: Option<String>,
+}
+
+/// Settings -> Save locations -> "Browse…": the system's folder dialog. Choosing nothing is an answer, not an error.
+/// Debian build: where the studio's data folder is, and a move of it waiting for the next start.
+async fn data_folder_status(State(state): State<AppState>) -> Json<data_folder::Status> {
+    let current = update_data_root(&state).to_path_buf();
+    Json(tokio::task::spawn_blocking(move || data_folder::status(&current)).await.expect("data folder status"))
+}
+
+#[derive(Deserialize)]
+struct PlanDataFolder {
+    /// The folder picked; none takes a waiting move back.
+    path: Option<String>,
+}
+
+/// Writes down a move of the data folder for the next start, checked first; or takes one back.
+async fn plan_data_folder(State(state): State<AppState>, Json(request): Json<PlanDataFolder>) -> Result<Json<data_folder::Status>, (StatusCode, Json<ApiError>)> {
+    let current = update_data_root(&state).to_path_buf();
+    let path = request.path.map(|path| path.trim().to_owned()).filter(|path| !path.is_empty());
+    tokio::task::spawn_blocking(move || -> anyhow::Result<data_folder::Status> {
+        match path {
+            Some(path) => {
+                let target = data_folder::target_in(std::path::Path::new(&path));
+                data_folder::check(&current, &target, data_folder::folder_bytes(&current))?;
+                data_folder::plan(Some(&target))?;
+            }
+            None => data_folder::plan(None)?,
+        }
+        Ok(data_folder::status(&current))
+    })
+    .await
+    .map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
+    .map(Json)
+    .map_err(|error| api_error(StatusCode::BAD_REQUEST, format!("{error:#}")))
+}
+
+/// The folder dialog for the data folder: what was picked, where the data would go inside it, and the room there.
+async fn pick_data_folder(State(state): State<AppState>) -> Result<Json<serde_json::Value>, (StatusCode, Json<ApiError>)> {
+    let Some(open) = save_locations::DialogOpen::take() else {
+        return Err(api_error(StatusCode::CONFLICT, "a folder dialog is open already".into()));
+    };
+    let current = update_data_root(&state).to_path_buf();
+    let start = current.parent().map(std::path::Path::to_path_buf);
+    let picked = tokio::task::spawn_blocking(move || {
+        let _open = open;
+        let mut dialog = rfd::FileDialog::new().set_title("Folder for the studio's data");
+        if let Some(start) = start.filter(|start| start.is_dir()) {
+            dialog = dialog.set_directory(start);
+        }
+        dialog.pick_folder()
+    })
+    .await
+    .map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let Some(picked) = picked else { return Ok(Json(serde_json::json!({ "picked": false }))) };
+    let target = data_folder::target_in(&picked);
+    let (free, size) = {
+        let (picked, current) = (picked.clone(), current.clone());
+        tokio::task::spawn_blocking(move || (model_storage::space(&picked).0, data_folder::folder_bytes(&current))).await.unwrap_or((0, 0))
+    };
+    Ok(Json(serde_json::json!({ "picked": true, "path": picked.display().to_string(), "target": target.display().to_string(), "free_bytes": free, "size_bytes": size })))
+}
+
+/// Debian build: the download speed and what each disk of the studio's folders reads and writes now.
+async fn activity_now(State(state): State<AppState>) -> Json<activity::Activity> {
+    let data_root = update_data_root(&state).to_path_buf();
+    Json(tokio::task::spawn_blocking(move || activity::now(&data_root)).await.unwrap_or_default())
+}
+
+async fn pick_save_location(Json(request): Json<PickSaveLocation>) -> Result<Json<Value>, (StatusCode, Json<ApiError>)> {
+    let Some(open) = save_locations::DialogOpen::take() else {
+        return Err(api_error(StatusCode::CONFLICT, "a folder dialog is open already".into()));
+    };
+    let start = save_locations::browse_start(&request.kind, request.current.as_deref());
+    let title = save_locations::browse_title(&request.kind);
+    let picked = tokio::task::spawn_blocking(move || {
+        let _open = open;
+        let mut dialog = rfd::FileDialog::new().set_title(title);
+        if let Some(start) = start {
+            dialog = dialog.set_directory(start);
+        }
+        dialog.pick_folder()
+    })
+    .await
+    .map_err(|error| api_error(StatusCode::INTERNAL_SERVER_ERROR, format!("the folder dialog failed: {error}")))?;
+    Ok(Json(match picked {
+        Some(folder) if folder.is_absolute() => serde_json::json!({ "picked": true, "path": folder.display().to_string() }),
+        Some(folder) => return Err(api_error(StatusCode::BAD_REQUEST, format!("{} is not a full path", folder.display()))),
+        None => serde_json::json!({ "picked": false }),
+    }))
+}
+
+async fn update_save_locations(Json(request): Json<save_locations::Settings>) -> Result<Json<Value>, (StatusCode, Json<ApiError>)> {
+    save_locations::save(request).map_err(|error| api_error(StatusCode::BAD_REQUEST, error))?;
+    Ok(Json(save_locations::page()))
+}
+
 async fn shutdown(state: AppState) {
     let _ = tokio::signal::ctrl_c().await;
     for stop in state.audio_cpp_music_stops.read().await.values() {
@@ -6828,8 +7006,10 @@ async fn start_engine_again_with(
         if let Some(binary) = &hip_executable {
             location.configured_executable = Some(binary.clone());
         }
-        let config = location.resolve(models)
+        let mut config = location.resolve(models)
             .map_err(|error| format!("the local engine runtime was not found: {error}"))?;
+        // threads, cores, priority, the systemd scope with the CPU and RAM limits, the memory plan's flags
+        config.options.limits = governor::engine_limits(governor::Engine::Yue);
         let mut engine = music_engine::yue_server::YueServerSupervisor::new(config).map_err(|error| error.to_string())?;
         report(music_pair::Stage::LoadingModel)?;
         match tokio::task::block_in_place(|| engine.ensure_started(std::time::Duration::from_secs(60))) {
@@ -7771,6 +7951,10 @@ pub fn studio_data_root() -> Option<PathBuf> {
 
     #[cfg(not(windows))]
     {
+        // Debian build: the folder picked in Settings, once the program that starts the studio moved the data there
+        if let Some(root) = data_folder::chosen() {
+            return Some(root);
+        }
         if let Some(root) = env::var_os("XDG_DATA_HOME") {
             return Some(PathBuf::from(root).join("yue2-studio"));
         }
@@ -10596,7 +10780,7 @@ impl LibraryArchive {
 /// looks for the files the catalogue names - by name, then by their contents -
 /// and hard-links or copies them into the studio's own model directory.
 async fn setup_adopt(State(state): State<AppState>, body: axum::body::Bytes) -> Result<Json<Value>, (StatusCode, Json<ApiError>)> {
-    let Some(models_root) = studio_data_root().map(|root| root.join("models").join(model_manager::ENGINE_ID)) else {
+    let Some(models_root) = studio_data_root().map(|root| model_storage::folder(&root, "models").join(model_manager::ENGINE_ID)) else {
         return Err(api_error(StatusCode::INTERNAL_SERVER_ERROR, "the studio has no data directory".into()));
     };
     // a folder an agent names is taken as it is; the window asks the user
@@ -13151,6 +13335,10 @@ async fn import_tracks(state: &AppState, job: &MusicJob, job_id: &str, tracks: V
         let audio_url = format!("/v1/library/media/{}", imported_song.song.id);
         tag_stored_song(state, &imported_song.song.id).await;
         after_import(state, &imported_song.song.id);
+        // Settings -> Save locations -> "Copy every finished song": the song to <folder>/<song>/
+        if let Some(audio) = state.library.media_path_for_song(&imported_song.song) {
+            save_locations::song_finished(&imported_song.song.title, &audio);
+        }
         imported.push(CompletedSong { id: imported_song.song.id.clone(), song: imported_song.song, audio_url });
     }
     Ok(imported)

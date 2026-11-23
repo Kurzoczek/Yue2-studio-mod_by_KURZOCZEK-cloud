@@ -700,4 +700,5 @@ const ko: Guide = {
   ],
 };
 
-export const trainingGuide: Record<Language, Guide> = { en, ru, zh, ja, ko, pt: ptTrainingGuide };
+// Polish: training needs an NVIDIA card, so the guide stays in English for now
+export const trainingGuide: Record<Language, Guide> = { en, pl: en, ru, zh, ja, ko, pt: ptTrainingGuide };

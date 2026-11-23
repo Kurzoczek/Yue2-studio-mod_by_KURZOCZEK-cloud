@@ -121,9 +121,13 @@ trap 'rm -rf -- "$output"' EXIT
 if [ ! -d "$worktree/.git" ]; then
     git clone "$repository" "$worktree"
 fi
+# a thread patch from an earlier build would stop the checkout of another commit
+git -C "$worktree" checkout --quiet -- src/backend.h 2>/dev/null || true
 git -C "$worktree" fetch --quiet origin "$commit" || git -C "$worktree" fetch --quiet origin
 git -C "$worktree" checkout --quiet "$commit"
 git -C "$worktree" submodule update --init --recursive
+# Debian: every core by default, or the count Settings -> Processor names (STUDIO_CPU_THREADS)
+"$root/scripts/patch-engine-threads.sh" "$worktree"
 
 # Keep CPU/Vulkan independent of CUDA and of Ninja logs from previous tool versions.
 cpu_toolchain=$(

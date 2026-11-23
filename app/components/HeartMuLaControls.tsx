@@ -25,6 +25,7 @@ const fields: readonly {name: Setting; placeholder: string; step: string}[] = [
 
 const labels: Record<string, readonly string[]> = {
   en: ['Temperature', 'Top-k', 'Codec chunk length (s)', 'Codec guidance'],
+  pl: ['Temperatura', 'Top-k', 'Długość kawałka kodeka (s)', 'Prowadzenie kodeka'],
   ru: ['Температура', 'Top-k', 'Длина сегмента кодека (с)', 'CFG кодека'],
   zh: ['温度', 'Top-k', '编解码分段时长（秒）', '编解码引导强度'],
   ja: ['温度', 'Top-k', 'コーデックの区間長（秒）', 'コーデックのガイダンス'],
@@ -76,6 +77,7 @@ export function HeartMuLaControls({values, onChange, language = 'en'}: {
 }
 const installLabels: Record<string, readonly [string, string, string]> = {
   en: ['Install HeartMuLa', 'Installing HeartMuLa…', 'HeartMuLa installation failed.'],
+  pl: ['Zainstaluj HeartMuLa', 'Instaluję HeartMuLa…', 'Instalacja HeartMuLa się nie udała.'],
   ru: ['Установить HeartMuLa', 'Установка HeartMuLa…', 'Не удалось установить HeartMuLa.'],
   zh: ['安装 HeartMuLa', '正在安装 HeartMuLa…', '无法安装 HeartMuLa。'],
   ja: ['HeartMuLa をインストール', 'HeartMuLa をインストール中…', 'HeartMuLa をインストールできませんでした。'],

@@ -527,7 +527,7 @@ pub struct LyricsSync {
 
 impl LyricsSync {
     pub fn new(data_root: &Path) -> Self {
-        Self { downloader: Downloader::new(data_root.join("karaoke")), cuda_libraries: std::sync::OnceLock::new(), acpp: std::sync::OnceLock::new() }
+        Self { downloader: Downloader::in_folder(data_root, "karaoke"), cuda_libraries: std::sync::OnceLock::new(), acpp: std::sync::OnceLock::new() }
     }
 
     /// The folders of the CUDA libraries the music engine runs on: transcribe.cpp's CUDA builds take links to them.
@@ -1687,10 +1687,10 @@ Third");
             std::fs::write(file, b"x").unwrap();
         }
         let record = sync.downloader.record_of(asset);
-        crate::install_record::write(&record, "https://example.invalid/engine-0.2.0.zip", "", &files, sync.downloader.root()).unwrap();
+        crate::install_record::write(&record, "https://example.invalid/engine-0.2.0.zip", "", &files, &sync.downloader.root()).unwrap();
         loaded_engines().lock().unwrap().insert(build.dir(), "https://example.invalid/engine-0.2.0.zip".into());
         assert!(!sync.restart_to_apply(), "the loaded release is the one on disk");
-        crate::install_record::write(&record, asset.url, "", &files, sync.downloader.root()).unwrap();
+        crate::install_record::write(&record, asset.url, "", &files, &sync.downloader.root()).unwrap();
         assert!(sync.restart_to_apply(), "today's release is on disk, the process holds the earlier one");
         assert!(sync.downloader.is_installed(asset));
         std::fs::remove_file(&files[1]).unwrap();

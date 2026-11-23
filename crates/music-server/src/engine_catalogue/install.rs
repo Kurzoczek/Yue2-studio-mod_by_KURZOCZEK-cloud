@@ -158,7 +158,15 @@ async fn download(
     loop {
         let scratch = tempfile::tempdir_in(path.parent().context("missing package directory")?)?;
         let staged = scratch.path().join("part");
-        let result = download_from(file, &source, &staged, client, transfer).await;
+        let mut result = download_from(file, &source, &staged, client, transfer, initial_bytes).await;
+        // A dropped line (a slow USB disk keeps it idle while the system writes out, and the server gives up) goes on
+        // from the byte it came to, a few times, before another mirror starts the file over.
+        let mut again = 0u32;
+        while again < RESUMES && result.as_ref().is_err_and(|error| error.downcast_ref::<reqwest::Error>().is_some()) {
+            again += 1;
+            tokio::time::sleep(std::time::Duration::from_secs(2u64 << again.min(5))).await;
+            result = download_from(file, &source, &staged, client, transfer, initial_bytes).await;
+        }
         match result {
             Ok(()) => {
                 tokio::fs::rename(&staged, path).await?;
@@ -190,17 +198,55 @@ async fn download(
     }
 }
 
+/// Tries on one source after a dropped line, each going on from where the file came to.
+const RESUMES: u32 = 6;
+
+/// Written out to the disk this often: a slow disk (USB) otherwise gathers gigabytes in memory and then holds every
+/// write for minutes while it catches up - long enough for the server to drop the idle line.
+const FLUSH_EVERY: u64 = 32 * 1024 * 1024;
+
 async fn download_from(
     file: &PackageFile,
     source: &str,
     path: &Path,
     client: &reqwest::Client,
     transfer: &super::progress::Transfer,
+    base: u64,
 ) -> Result<()> {
-    let mut response = client.get(source).send().await?.error_for_status()?;
-    let mut writer = tokio::fs::File::create_new(path).await?;
+    // what an earlier try left is kept, hashed again, and only the rest asked for
+    let have = tokio::fs::metadata(path).await.map(|meta| meta.len()).unwrap_or(0).min(file.bytes);
+    let mut request = client.get(source);
+    if have > 0 {
+        request = request.header(reqwest::header::RANGE, format!("bytes={have}-"));
+    }
+    let mut response = request.send().await?.error_for_status()?;
+    let resumed = have > 0 && response.status() == reqwest::StatusCode::PARTIAL_CONTENT;
     let mut hash = Sha256::new();
     let mut bytes = 0u64;
+    let mut writer = if resumed {
+        let mut existing = tokio::fs::File::open(path).await?;
+        let mut buffer = vec![0u8; 1 << 20];
+        loop {
+            let count = tokio::io::AsyncReadExt::read(&mut existing, &mut buffer).await?;
+            if count == 0 || bytes >= have {
+                break;
+            }
+            let count = count.min((have - bytes) as usize);
+            hash.update(&buffer[..count]);
+            bytes += count as u64;
+        }
+        ensure!(bytes == have, "the part already downloaded could not be read again");
+        let writer = tokio::fs::OpenOptions::new().write(true).open(path).await?;
+        writer.set_len(have).await?;
+        let mut writer = writer;
+        tokio::io::AsyncSeekExt::seek(&mut writer, std::io::SeekFrom::Start(have)).await?;
+        writer
+    } else {
+        // from the start: a server that does not serve ranges, or nothing there yet
+        tokio::fs::File::create(path).await?
+    };
+    transfer.set_downloaded_bytes(base + bytes);
+    let mut unflushed = 0u64;
     while let Some(chunk) = response.chunk().await? {
         ensure!(
             chunk.len() as u64 <= file.bytes - bytes,
@@ -209,7 +255,13 @@ async fn download_from(
         bytes += chunk.len() as u64;
         hash.update(&chunk);
         writer.write_all(&chunk).await?;
+        crate::activity::received(chunk.len() as u64);
         transfer.downloaded(chunk.len() as u64);
+        unflushed += chunk.len() as u64;
+        if unflushed >= FLUSH_EVERY {
+            writer.sync_data().await?;
+            unflushed = 0;
+        }
     }
     ensure!(
         bytes == file.bytes
@@ -316,8 +368,10 @@ async fn stage_package<P: Package>(
     transfer: &super::progress::Transfer,
     automatic: bool,
 ) -> Result<serde_json::Value> {
-    let root = update_data_root(state).join(P::FOLDER);
-    let objects = root.with_file_name("music-model-objects");
+    // wherever the person keeps these download folders (Debian build); the shared weights go with the models, so the
+    // models' files stay hard links to them on one disk
+    let root = crate::model_storage::folder(update_data_root(state), P::FOLDER);
+    let objects = crate::model_storage::folder(update_data_root(state), crate::model_storage::MODEL_OBJECTS);
     let root = root.join(package.id());
     tokio::fs::create_dir_all(&root).await?;
     let lock = std::fs::File::options()
@@ -510,7 +564,7 @@ async fn read_package<P: Package>(
     generation: Option<&str>,
 ) -> Result<(P, PathBuf, String)> {
     ensure!(portable_name(id), "invalid engine id");
-    let root = data_root.join(P::FOLDER).join(id);
+    let root = crate::model_storage::folder(data_root, P::FOLDER).join(id);
     let selected = match generation {
         Some(value) => value.to_owned(),
         None => read_selection(&root)?.active,
@@ -606,7 +660,7 @@ pub(crate) async fn resolve_native(
             saved.generation.clone()
         }
         None => {
-            let selection = read_selection(&data_root.join(EnginePackage::FOLDER).join(id))?;
+            let selection = read_selection(&crate::model_storage::folder(data_root, EnginePackage::FOLDER).join(id))?;
             if selection.active.is_empty() {
                 return Ok(None);
             }
@@ -774,8 +828,7 @@ pub(crate) async fn status(
         .await
         .map_err(|error| api_error(StatusCode::CONFLICT, format!("{error:#}")))?;
     let selection = read_selection(
-        &update_data_root(&state)
-            .join(EnginePackage::FOLDER)
+        &crate::model_storage::folder(update_data_root(&state), EnginePackage::FOLDER)
             .join(&id),
     )
     .map_err(|e| api_error(StatusCode::CONFLICT, format!("{e:#}")))?;
@@ -917,8 +970,7 @@ pub(crate) async fn model_status(
         .await
         .map_err(|e| api_error(StatusCode::CONFLICT, format!("{e:#}")))?;
     let selection = read_selection(
-        &update_data_root(&state)
-            .join(ModelPackage::FOLDER)
+        &crate::model_storage::folder(update_data_root(&state), ModelPackage::FOLDER)
             .join(&id),
     )
     .map_err(|e| api_error(StatusCode::CONFLICT, format!("{e:#}")))?;

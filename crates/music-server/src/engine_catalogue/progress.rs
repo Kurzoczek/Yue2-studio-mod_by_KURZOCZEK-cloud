@@ -34,6 +34,11 @@ impl Installation {
         id: &str,
         total_bytes: u64,
     ) -> anyhow::Result<(Self, watch::Receiver<bool>)> {
+        let _gate = crate::model_storage::start_gate();
+        anyhow::ensure!(
+            !crate::model_storage::moving(),
+            "the downloads are being moved to another folder; install when the move is done"
+        );
         let key = (kind.to_owned(), id.to_owned());
         let mut jobs = ACTIVE.lock().expect("package progress");
         anyhow::ensure!(
@@ -54,6 +59,11 @@ impl Installation {
         jobs.insert(key.clone(), transfer.clone());
         Ok((Self { key, transfer }, signal))
     }
+}
+
+/// An engine or a model package is being installed now.
+pub(crate) fn any_active() -> bool {
+    !ACTIVE.lock().expect("package progress").is_empty()
 }
 
 impl Drop for Installation {

@@ -110,10 +110,10 @@ pub struct ManualArchive {
 /// Owns one capability's download directory.
 #[derive(Clone)]
 pub struct Downloader {
-    root: PathBuf,
+    root: Place,
     /// Where runtimes unpack, one folder per flavour: `root/runtime` unless
     /// several capabilities share one build of a tool.
-    runtime_root: PathBuf,
+    runtime_root: Place,
     http: reqwest::Client,
     progress: Arc<Mutex<Option<DownloadProgress>>>,
     rejected: Arc<Mutex<std::collections::HashMap<String, DownloadProgress>>>,
@@ -121,6 +121,38 @@ pub struct Downloader {
     /// on disk with its manifest, so pressing this is a pause as much as a
     /// cancel: the next attempt carries on from the last finished piece.
     cancel: Arc<std::sync::atomic::AtomicBool>,
+}
+
+/// A folder of a downloader: fixed, or one of the studio's download folders, which a person may keep in a folder of
+/// their choosing (Debian build, `model_storage::folder`) - asked where it is each time, so a move counts at once.
+#[derive(Clone, Debug)]
+pub enum Place {
+    Fixed(PathBuf),
+    Download { data_root: PathBuf, name: &'static str, sub: PathBuf },
+}
+
+impl Place {
+    pub fn path(&self) -> PathBuf {
+        match self {
+            Place::Fixed(path) => path.clone(),
+            Place::Download { data_root, name, sub } => {
+                let folder = crate::model_storage::folder(data_root, name);
+                if sub.as_os_str().is_empty() { folder } else { folder.join(sub) }
+            }
+        }
+    }
+
+    /// The download folder `name` of the data folder, or `sub` inside it.
+    pub fn download(data_root: &Path, name: &'static str, sub: impl Into<PathBuf>) -> Self {
+        Place::Download { data_root: data_root.to_path_buf(), name, sub: sub.into() }
+    }
+
+    fn join(&self, more: &str) -> Self {
+        match self {
+            Place::Fixed(path) => Place::Fixed(path.join(more)),
+            Place::Download { data_root, name, sub } => Place::Download { data_root: data_root.clone(), name, sub: sub.join(more) },
+        }
+    }
 }
 
 impl Downloader {
@@ -132,6 +164,17 @@ impl Downloader {
     /// A downloader whose runtimes unpack under `runtime_root`, where another
     /// capability's downloader finds the same build.
     pub fn with_runtimes(root: PathBuf, runtime_root: PathBuf) -> Self {
+        Self::at_places(Place::Fixed(root), Place::Fixed(runtime_root))
+    }
+
+    /// A downloader of the studio's download folder `name`, wherever it is kept; its runtimes in `runtime` inside.
+    pub fn in_folder(data_root: &Path, name: &'static str) -> Self {
+        let root = Place::download(data_root, name, "");
+        let runtime_root = root.join("runtime");
+        Self::at_places(root, runtime_root)
+    }
+
+    pub fn at_places(root: Place, runtime_root: Place) -> Self {
         Self {
             root,
             runtime_root,
@@ -148,16 +191,17 @@ impl Downloader {
         self
     }
 
-    pub fn root(&self) -> &Path {
-        &self.root
+    /// Where the downloads are now: asked each time, as the folder may have been moved.
+    pub fn root(&self) -> PathBuf {
+        self.root.path()
     }
 
     pub fn path_of(&self, asset: &Asset) -> PathBuf {
-        self.root.join(asset.relative_path)
+        self.root().join(asset.relative_path)
     }
 
     pub fn runtime_dir(&self, flavour: &str) -> PathBuf {
-        self.runtime_root.join(flavour)
+        self.runtime_root.path().join(flavour)
     }
 
     /// Where an asset's picked files land. Without a flavour they land in the
@@ -166,7 +210,7 @@ impl Downloader {
     pub fn picked_into(&self, asset: &Asset) -> PathBuf {
         match asset.unzip_into {
             Some(flavour) => self.runtime_dir(flavour),
-            None => self.root.clone(),
+            None => self.root(),
         }
     }
 
@@ -186,7 +230,7 @@ impl Downloader {
         if crate::engine_runtime::is_shared_windows_cublas(asset) {
             return self.is_verified_install(asset) || self.holds_pinned_bytes(asset, &record);
         }
-        match crate::install_record::matches(&record, asset.url, &self.root) {
+        match crate::install_record::matches(&record, asset.url, &self.root()) {
             Some(true) => true,
             Some(false) => self.holds_pinned_bytes(asset, &record),
             None => self.take_over(asset, &record) || self.holds_pinned_bytes(asset, &record),
@@ -199,7 +243,7 @@ impl Downloader {
         let record = self.record_of(asset);
         self.present(asset)
             && crate::install_record::read(&record).is_some_and(|record| record.sha256 == expected)
-            && crate::install_record::matches(&record, asset.url, &self.root) == Some(true)
+            && crate::install_record::matches(&record, asset.url, &self.root()) == Some(true)
     }
 
     /// Today's pin already on disk byte for byte, from whichever address: the files a pick takes out of its
@@ -248,7 +292,7 @@ impl Downloader {
         } else {
             return false;
         };
-        if let Err(error) = crate::install_record::write(record, asset.url, file_sha256, &files, &self.root) {
+        if let Err(error) = crate::install_record::write(record, asset.url, file_sha256, &files, &self.root()) {
             eprintln!("[ERROR] {}: the record of today's files already on disk was not written: {error:#}", asset.label);
         }
         true
@@ -295,7 +339,7 @@ impl Downloader {
         let Some((path, _)) = key.filter(|(path, size)| fs::metadata(path).is_ok_and(|meta| meta.len() == *size)) else {
             return false;
         };
-        if let Err(error) = crate::install_record::write(record, asset.url, "", &[path], &self.root) {
+        if let Err(error) = crate::install_record::write(record, asset.url, "", &[path], &self.root()) {
             eprintln!("[ERROR] {}: the record of the download already on disk was not written: {error:#}", asset.label);
         }
         true
@@ -436,7 +480,7 @@ impl Downloader {
         let mut freed = 0u64;
 
         if !asset.pick.is_empty() {
-            let destination = self.runtime_root.join(asset.unzip_into.unwrap_or("."));
+            let destination = self.runtime_root.path().join(asset.unzip_into.unwrap_or("."));
             for name in asset.pick {
                 freed += drop_file(destination.join(picked_file_name(name)))?;
             }
@@ -667,7 +711,7 @@ impl Downloader {
                     match source {
                         Some(archive) => {
                             let into = (!asset.pick.is_empty() || asset.unzip_into.is_some()).then(|| self.picked_into(asset));
-                            settle_apart(asset, archive.to_owned(), self.record_of(asset), self.root.clone(), into, true).await
+                            settle_apart(asset, archive.to_owned(), self.record_of(asset), self.root(), into, true).await
                         }
                         None => self.fetch_now(asset, cell).await,
                     }
@@ -743,12 +787,12 @@ impl Downloader {
             // minute timeout. NVIDIA's cuBLAS archive is almost all the two
             // libraries anyway - nineteen megabytes of difference bought a
             // download that survives a bad line.
-            let (sha256, files) = download_and_extract_named(&self.http, asset, &target, &self.picked_into(asset), cell, self.cancel.clone(), &record, &self.root).await?;
+            let (sha256, files) = download_and_extract_named(&self.http, asset, &target, &self.picked_into(asset), cell, self.cancel.clone(), &record, &self.root()).await?;
             make_programs_executable(asset.marker, &files)?;
-            return crate::install_record::write(&record, asset.url, &sha256, &files, &self.root);
+            return crate::install_record::write(&record, asset.url, &sha256, &files, &self.root());
         }
         let target = fetch(&self.http, asset, &target, cell, self.cancel.clone()).await?;
-        settle_apart(asset, target, record, self.root.clone(), asset.unzip_into.map(|flavour| self.runtime_dir(flavour)), false).await
+        settle_apart(asset, target, record, self.root(), asset.unzip_into.map(|flavour| self.runtime_dir(flavour)), false).await
     }
 
     /// Starts one download in the background. Only one runs at a time, and an
@@ -785,8 +829,8 @@ impl Downloader {
 
         let target = self.path_of(asset);
         let record = self.record_of(asset);
-        let root = self.root.clone();
-        let runtime_root = self.runtime_root.clone();
+        let root = self.root();
+        let runtime_root = self.runtime_root.path();
         let http = self.http.clone();
         let progress = self.progress.clone();
         let cancel = self.cancel.clone();
@@ -2340,8 +2384,8 @@ mod tests {
             fs::write(shared.join("hotstep-tools-1").join(name), b"x").unwrap();
         }
         let unpacked = vec![shared.join("hotstep-tools-1").join("music-midi.exe"), shared.join("hotstep-tools-1").join("music-train.exe")];
-        crate::install_record::write(&midi.record_of(&transcriber), transcriber.url, "", &unpacked, midi.root()).unwrap();
-        crate::install_record::write(&training.record_of(&trainer), trainer.url, "", &unpacked, training.root()).unwrap();
+        crate::install_record::write(&midi.record_of(&transcriber), transcriber.url, "", &unpacked, &midi.root()).unwrap();
+        crate::install_record::write(&training.record_of(&trainer), trainer.url, "", &unpacked, &training.root()).unwrap();
         assert!(midi.is_installed(&transcriber) && training.is_installed(&trainer));
         assert_eq!(midi.path_of(&transcriber), root.join("midi").join("tools.zip"), "the archive downloads into the capability's own folder");
         fs::remove_dir_all(&root).ok();

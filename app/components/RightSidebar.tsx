@@ -1,4 +1,5 @@
 import { openStems } from '../services/openStems';
+import { withLocalKey } from '../services/apiBase';
 import React, { useState, useEffect } from 'react';
 import { useKaraokeStatus } from '../services/studioQueries';
 import { TRACK_ARTIST } from '../services/studio';
@@ -214,7 +215,8 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ song, onClose, onOpe
     const openSource = (url?: string) => {
         if (!url) return;
         const resolved = url.startsWith('http') ? url : `${window.location.origin}${url}`;
-        window.open(resolved, '_blank');
+        // a file of the studio's own service needs the local API key (Debian hardening), any other address none
+        window.open(withLocalKey(resolved), '_blank');
     };
 
     if (!song) return (

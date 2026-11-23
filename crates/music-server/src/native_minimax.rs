@@ -932,7 +932,9 @@ impl Installation {
             .unwrap_or_else(|| {
                 data_dirs
                     .iter()
-                    .map(|dir| dir.join("models").join(ENGINE_ID))
+                    .enumerate()
+                    // the studio's own (the first) wherever its "models" folder is kept
+                    .map(|(at, dir)| if at == 0 { crate::model_storage::folder(dir, "models") } else { dir.join("models") }.join(ENGINE_ID))
                     .chain(
                         executable
                             .as_deref()
@@ -952,7 +954,7 @@ impl Installation {
                 }
             })
             .collect();
-        let adapters_root = std::iter::once(data_root.join("adapters").join(ENGINE_ID))
+        let adapters_root = std::iter::once(crate::model_storage::folder(data_root, "adapters").join(ENGINE_ID))
             .chain(data_dirs.iter().skip(1).map(|dir| dir.join("adapters")))
             .filter_map(|dir| dir.canonicalize().ok())
             .find(|dir| !native_adapters_at(dir).is_empty());

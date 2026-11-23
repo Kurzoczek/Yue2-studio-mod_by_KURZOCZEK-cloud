@@ -14,7 +14,7 @@ const PACKAGE: &str = "https://huggingface.co/audio-cpp/audio.cpp-gguf/tree/32c1
 const LICENSE: &str = "https://github.com/HeartMuLa/MuLaCover/blob/e27fa7fa0da7c9817879cc6210cc5693f9327946/MODEL_LICENSE";
 
 pub(super) fn model_dir(root: &Path) -> PathBuf {
-    root.join("audiocpp/models").join(DIRECTORY)
+    crate::model_storage::under(root, "audiocpp/models").join(DIRECTORY)
 }
 
 pub(super) fn missing_files(dir: &Path) -> Vec<&'static str> {

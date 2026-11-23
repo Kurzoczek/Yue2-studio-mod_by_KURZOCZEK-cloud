@@ -6,6 +6,7 @@ import { trainingAssetLabel } from '../i18n/trainingAssets';
 import { poll } from '../services/poll';
 import { DevicePicker, type Device } from './DevicePicker';
 import { ManualDownloads, ManualRuntimeArchive, type RuntimeArchive } from './ManualDownloads';
+import { DataFolderChooser } from './ChooseFolder';
 import { UpdatePlanView } from './UpdateScreen';
 import { ModelPreset } from './ModelPreset';
 import { MirrorOffer } from './MirrorOffer';
@@ -1246,6 +1247,7 @@ export const SetupGate: React.FC<{
               files={missing.flatMap((id) => catalog?.components.find((component) => component.id === id) ?? [])}
               folder={status?.model_root}
               mirror={status?.huggingface_mirror === true}
+              onMoved={() => void refresh().catch(() => undefined)}
             />
             {status?.taken_from && Object.keys(status.taken_from).length > 0 && (
               <div className="mt-2 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-[11px] leading-5 text-emerald-700 dark:text-emerald-300">
@@ -1264,6 +1266,8 @@ export const SetupGate: React.FC<{
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{t('dataFolder')}</p>
                 <p className="mt-1 break-all font-mono text-[11px] text-zinc-600 dark:text-zinc-300">{status.data_directory}</p>
                 {status.portable && <p className="mt-1 text-[11px] leading-4 text-emerald-600 dark:text-emerald-300">{t('portableFolder')}</p>}
+                {/* chosen here, not only shown: moved before the next start */}
+                <DataFolderChooser />
                 <button
                   type="button"
                   onClick={() => void fetch('/v1/open-data-directory', { method: 'POST' })}

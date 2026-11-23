@@ -6,6 +6,7 @@ import { useLibrarySongs } from '../services/studioQueries';
 export type Vevo2References = { voice_song_id: string; melody_song_id?: string };
 
 export const vevo2SingingStrings = {
+  pl: { voice: 'Wzorzec głosu', melody: 'Wzorzec melodii (opcjonalnie)', choose: 'Wybierz z biblioteki', none: 'Bez wzorca melodii', empty: 'Zaimportuj nagranie głosu do biblioteki.', required: 'Wpisz tekst do zaśpiewania i wybierz wzorzec głosu.' },
   en: { voice: 'Voice reference', melody: 'Melody reference (optional)', choose: 'Choose from the library', none: 'No melody reference', empty: 'Import a voice recording into the library.', required: 'Enter text to sing and choose a voice reference.' },
   ru: { voice: 'Образец голоса', melody: 'Образец мелодии (необязательно)', choose: 'Выберите из библиотеки', none: 'Без образца мелодии', empty: 'Добавьте запись голоса в библиотеку.', required: 'Введите текст для пения и выберите образец голоса.' },
   zh: { voice: '嗓音参考', melody: '旋律参考（可选）', choose: '从资料库选择', none: '无旋律参考', empty: '请将一段人声录音导入资料库。', required: '请输入演唱文本并选择嗓音参考。' },
@@ -15,6 +16,7 @@ export const vevo2SingingStrings = {
 };
 
 const modelStrings = {
+  pl: { folder: 'Folder z twoimi wagami Vevo2', set: 'Użyj tego folderu', reset: 'Użyj folderu studia', defaultFolder: 'Domyślnie względem folderu danych studia', terms: 'Warunki oryginalnego modelu', failure: 'Nie udało się zapisać folderu Vevo2.' },
   en: { folder: 'Folder containing your Vevo2 weights', set: 'Use this folder', reset: 'Use the Studio folder', defaultFolder: 'Default relative to the Studio data folder', terms: 'Original model terms', failure: 'Could not save the Vevo2 folder.' },
   ru: { folder: 'Папка с вашими весами Vevo2', set: 'Использовать эту папку', reset: 'Использовать папку Studio', defaultFolder: 'Путь по умолчанию относительно папки данных Studio', terms: 'Условия автора модели', failure: 'Не удалось сохранить папку Vevo2.' },
   zh: { folder: '已有 Vevo2 权重所在的文件夹', set: '使用此文件夹', reset: '使用 Studio 文件夹', defaultFolder: '相对于 Studio 数据目录的默认路径', terms: '原始模型使用条款', failure: '无法保存 Vevo2 文件夹。' },

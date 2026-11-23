@@ -33,7 +33,7 @@ pub(super) struct HeartMuLaOptions {
 }
 
 pub(super) fn model_dir(root: &Path) -> PathBuf {
-    root.join("audiocpp/models").join(WEIGHT_DIR)
+    crate::model_storage::under(root, "audiocpp/models").join(WEIGHT_DIR)
 }
 
 pub(super) fn missing_files(directory: &Path) -> Vec<&'static str> {

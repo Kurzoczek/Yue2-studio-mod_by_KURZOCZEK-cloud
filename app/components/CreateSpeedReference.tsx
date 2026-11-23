@@ -22,6 +22,7 @@ const referenceIds = {
 
 const strings = {
   en: { heading: 'Reference speed on RTX 4090 · Windows 11', median: 'Median of three warm runs', unit: 'audio s/s' },
+  pl: { heading: 'Wzorcowa szybkość na RTX 4090 · Windows 11', median: 'Mediana z trzech rozgrzanych przebiegów', unit: 's audio/s' },
   ru: { heading: 'Замер на RTX 4090 · Windows 11', median: 'Медиана трёх прогретых запусков', unit: 'с аудио/с' },
   zh: { heading: 'RTX 4090 参考速度 · Windows 11', median: '三次热运行的中位数', unit: '音频秒/秒' },
   ja: { heading: 'RTX 4090 の参考速度 · Windows 11', median: 'ウォーム実行 3 回の中央値', unit: '音声秒/秒' },

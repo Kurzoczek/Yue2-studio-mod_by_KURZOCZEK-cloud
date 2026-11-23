@@ -100,6 +100,29 @@ summary {
         background: #52525b;
       }
 
+      /* The settings sections: a bar wide and bright enough to see and grab */
+      .settings-nav-scroll {
+        scrollbar-gutter: stable;
+      }
+      .settings-nav-scroll::-webkit-scrollbar {
+        width: 10px;
+      }
+      .settings-nav-scroll::-webkit-scrollbar-track {
+        background: rgba(113, 113, 122, 0.15);
+        border-radius: 5px;
+      }
+      .settings-nav-scroll::-webkit-scrollbar-thumb {
+        background: #a1a1aa;
+        border-radius: 5px;
+        min-height: 40px;
+      }
+      .dark .settings-nav-scroll::-webkit-scrollbar-thumb {
+        background: #71717a;
+      }
+      .dark .settings-nav-scroll::-webkit-scrollbar-thumb:hover {
+        background: #a1a1aa;
+      }
+
       /* Hide scrollbar utility */
       .scrollbar-hide {
         -ms-overflow-style: none;
@@ -292,4 +315,138 @@ select option {
 .score-view .score-sounding {
   fill: #ec4899;
   stroke: #ec4899;
+}
+
+/* ------------------------------------------------------------------------------------------------------------------
+   Debian build: the "anime" look (Settings -> Appearance -> Style). Tailwind 4 keeps every colour in a CSS variable,
+   so the whole window is recoloured here, on <html class="anime">, without touching a component: night sakura on
+   dark, pastel sakura on light. Original art only: petals, glow, soft corners - no characters.
+   ------------------------------------------------------------------------------------------------------------------ */
+html.anime {
+  --radius-md: 0.6rem;
+  --radius-lg: 0.9rem;
+  --radius-xl: 1.2rem;
+  --radius-2xl: 1.6rem;
+  --font-sans: Nunito, 'M PLUS Rounded 1c', 'Varela Round', Quicksand, Inter, system-ui, sans-serif;
+  --color-pink-200: #ffd6ea;
+  --color-pink-300: #ffb8dc;
+  --color-pink-400: #ff8cc6;
+  --color-pink-500: #ff5fae;
+  --color-pink-600: #f2409a;
+  --color-pink-700: #d02a82;
+  --color-indigo-300: #c9bcff;
+  --color-indigo-500: #9a83ff;
+  --color-indigo-950: #241a4a;
+  --color-fuchsia-500: #c86bff;
+}
+
+/* night sakura: deep violet-blue, sakura pink and a touch of lavender */
+html.anime.dark {
+  --color-zinc-50: #fbf7ff;
+  --color-zinc-100: #f3ecff;
+  --color-zinc-200: #e4d8fb;
+  --color-zinc-300: #cdbdf0;
+  --color-zinc-400: #a995d6;
+  --color-zinc-500: #8470b5;
+  --color-zinc-600: #5f4d8c;
+  --color-zinc-700: #45376a;
+  --color-zinc-800: #2f2550;
+  --color-zinc-900: #221a3d;
+  --color-zinc-950: #160f2b;
+  --color-black: #0b0618;
+  --color-suno: #140d26;
+  --color-suno-sidebar: #0e0820;
+  --color-suno-panel: #1b1233;
+  --color-suno-card: #22183f;
+  --color-suno-hover: #2e2152;
+  --color-suno-border: #3a2a63;
+}
+
+html.anime.dark body {
+  background-color: #140d26;
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, rgba(255, 255, 255, 0.55), transparent 60%),
+    radial-gradient(1px 1px at 68% 9%, rgba(255, 220, 240, 0.5), transparent 60%),
+    radial-gradient(1.5px 1.5px at 85% 42%, rgba(200, 190, 255, 0.5), transparent 60%),
+    radial-gradient(1px 1px at 32% 76%, rgba(255, 255, 255, 0.4), transparent 60%),
+    radial-gradient(60% 50% at 100% 0%, rgba(242, 64, 154, 0.12), transparent 70%),
+    radial-gradient(50% 45% at 0% 100%, rgba(154, 131, 255, 0.12), transparent 70%);
+  background-attachment: fixed;
+}
+
+/* pastel sakura: blush pinks with plum text */
+html.anime:not(.dark) {
+  --color-white: #fffbfd;
+  --color-zinc-50: #fff6fb;
+  --color-zinc-100: #fdebf4;
+  --color-zinc-200: #f7d9e8;
+  --color-zinc-300: #eebdd6;
+  --color-zinc-400: #d495b7;
+  --color-zinc-500: #b07595;
+  --color-zinc-600: #8d5b78;
+  --color-zinc-700: #6d445d;
+  --color-zinc-800: #523246;
+  --color-zinc-900: #3a2233;
+  --color-zinc-950: #261520;
+  --color-pink-500: #ff6fb0;
+  --color-pink-600: #ec4f97;
+}
+
+html.anime:not(.dark) body {
+  background-image: radial-gradient(70% 60% at 100% 0%, rgba(255, 182, 220, 0.35), transparent 70%),
+    radial-gradient(60% 50% at 0% 100%, rgba(201, 188, 255, 0.3), transparent 70%);
+  background-attachment: fixed;
+}
+
+/* the main buttons: a sakura-to-lavender gradient that glows */
+html.anime .bg-pink-600 {
+  background-image: linear-gradient(135deg, #ff6fb5, #b48bff);
+  box-shadow: 0 0 14px rgba(255, 95, 174, 0.4);
+}
+html.anime .bg-pink-600:hover {
+  box-shadow: 0 0 20px rgba(255, 95, 174, 0.6);
+}
+
+html.anime ::selection {
+  background: rgba(255, 95, 174, 0.45);
+}
+
+html.anime ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #ff8cc6, #9a83ff);
+}
+
+/* sakura petals drifting down over the window; they take no clicks, and stay away for less motion */
+#anime-petals {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 45;
+  overflow: hidden;
+}
+.anime-petal {
+  position: absolute;
+  top: -6vh;
+  border-radius: 150% 0 150% 0;
+  background: linear-gradient(135deg, #ffe3f0, #ff9cc9);
+  box-shadow: 0 0 6px rgba(255, 170, 210, 0.55);
+  animation-name: anime-fall, anime-sway;
+  animation-timing-function: linear, ease-in-out;
+  animation-iteration-count: infinite, infinite;
+  animation-direction: normal, alternate;
+}
+@keyframes anime-fall {
+  from { transform: translateY(-6vh) rotate(0deg); }
+  to { transform: translateY(112vh) rotate(540deg); }
+}
+@keyframes anime-sway {
+  from { translate: -28px 0; }
+  to { translate: 28px 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #anime-petals { display: none; }
+}
+/* on pastel pink the petals need more colour to be seen */
+html.anime:not(.dark) .anime-petal {
+  background: linear-gradient(135deg, #ffb3d6, #ee5f9f);
+  box-shadow: 0 0 5px rgba(238, 95, 159, 0.35);
 }

@@ -396,7 +396,8 @@ pub struct DownloadProgress {
 
 /// Owns the downloads and the sidecar process.
 pub struct AssistantRuntime {
-    root: PathBuf,
+    /// Wherever the "assistant" download folder is kept (Debian build), asked each time.
+    place: crate::downloads::Place,
     http: reqwest::Client,
     state: Arc<Mutex<RuntimeState>>,
     /// Raised to stop the download. What arrived stays on disk, so this is a
@@ -439,9 +440,13 @@ impl Drop for RunningServer {
 }
 
 impl AssistantRuntime {
+    fn root(&self) -> PathBuf {
+        self.place.path()
+    }
+
     pub fn new(data_root: &Path) -> Self {
         Self {
-            root: data_root.join("assistant"),
+            place: crate::downloads::Place::download(data_root, "assistant", ""),
             http: crate::net::download_client(),
             state: Arc::new(Mutex::new(RuntimeState::default())),
             cancel: Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -449,11 +454,11 @@ impl AssistantRuntime {
     }
 
     pub(crate) fn path_of(&self, asset: &Asset) -> PathBuf {
-        self.root.join(asset.relative_path)
+        self.root().join(asset.relative_path)
     }
 
     pub fn log_path(&self) -> PathBuf {
-        self.root.join("llama-server.log")
+        self.root().join("llama-server.log")
     }
 
     /// The tail of the sidecar log, for error messages that would otherwise
@@ -486,7 +491,7 @@ impl AssistantRuntime {
     /// this is also what decides which of the two a download has to fetch: the
     /// choice is the setting, not a guess made after the fact.
     pub fn server_binary_for(&self, device: Option<&str>) -> Option<PathBuf> {
-        let runtime = self.root.join("runtime");
+        let runtime = self.root().join("runtime");
         let name = if cfg!(windows) { "llama-server.exe" } else { "llama-server" };
         let card = card_flavour();
         let order: Vec<&str> = match device {
@@ -524,7 +529,7 @@ impl AssistantRuntime {
             return fs::metadata(self.path_of(asset)).is_ok_and(|meta| meta.len() == asset.bytes);
         }
         let record = self.record_of(asset);
-        match crate::install_record::matches(&record, asset.url, &self.root) {
+        match crate::install_record::matches(&record, asset.url, &self.root()) {
             Some(current) => current,
             None => self.take_over(asset, &record),
         }
@@ -554,13 +559,13 @@ impl AssistantRuntime {
             return true;
         }
         let key = match asset.unzip_into {
-            Some(flavour) => crate::install_record::key_file(asset.url).map(|(file, size)| (self.root.join("runtime").join(flavour).join(file), size)),
+            Some(flavour) => crate::install_record::key_file(asset.url).map(|(file, size)| (self.root().join("runtime").join(flavour).join(file), size)),
             None => Some((self.path_of(asset), asset.bytes)),
         };
         let Some((path, _)) = key.filter(|(path, size)| fs::metadata(path).is_ok_and(|meta| meta.len() == *size)) else {
             return false;
         };
-        if let Err(error) = crate::install_record::write(record, asset.url, "", &[path], &self.root) {
+        if let Err(error) = crate::install_record::write(record, asset.url, "", &[path], &self.root()) {
             eprintln!("[ERROR] {}: the record of the download already on disk was not written: {error:#}", asset.label);
         }
         true
@@ -593,7 +598,7 @@ impl AssistantRuntime {
         if let Some(flavour) = asset.unzip_into {
             // A runtime counts as installed once its own directory has content:
             // the CUDA libraries carry no llama-server of their own.
-            let directory = self.root.join("runtime").join(flavour);
+            let directory = self.root().join("runtime").join(flavour);
             let marker = asset.marker;
             return fs::read_dir(&directory)
                 .map(|entries| {
@@ -627,7 +632,7 @@ impl AssistantRuntime {
         let models = self.installed_models();
         let server_path = self.server_binary();
         RuntimeStatus {
-            root: self.root.display().to_string(),
+            root: self.root().display().to_string(),
             ready: server_path.is_some() && !models.is_empty(),
             server_path: server_path.map(|path| path.display().to_string()),
             installed_models: models.iter().map(|asset| asset.id.to_string()).collect(),
@@ -668,7 +673,7 @@ impl AssistantRuntime {
         let asset = asset(id).ok_or_else(|| anyhow!("unknown assistant asset: {id}"))?;
         let mut freed = 0u64;
         if let Some(flavour) = asset.unzip_into {
-            let directory = self.root.join("runtime").join(flavour);
+            let directory = self.root().join("runtime").join(flavour);
             if let Ok(entries) = fs::read_dir(&directory) {
                 for entry in entries.flatten() {
                     if let Ok(meta) = entry.metadata() {
@@ -743,14 +748,14 @@ impl AssistantRuntime {
         for asset in &pending {
             let target = self.path_of(asset);
             let outcome = if let Some(source) = source {
-                let (root, source, asset) = (self.root.clone(), source.to_owned(), *asset);
+                let (root, source, asset) = (self.root(), source.to_owned(), *asset);
                 tokio::task::spawn_blocking(move || {
                     let sha = crate::pin_sha::check(asset.url, &source)?;
                     Self::record_install(asset, &source, &target, &root, &sha, true)
                 }).await.map_err(anyhow::Error::from).and_then(|outcome| outcome)
             } else {
                 match download_asset(&self.http, asset, &target, &self.state, base, self.cancel.clone()).await {
-                    Ok(downloaded) => finish_apart(asset, downloaded, &target, &self.root).await,
+                    Ok(downloaded) => finish_apart(asset, downloaded, &target, &self.root()).await,
                     Err(error) => Err(error),
                 }
             };
@@ -801,7 +806,7 @@ impl AssistantRuntime {
         let target = self.path_of(asset);
         let http = self.http.clone();
         let state = self.state.clone();
-        let root = self.root.clone();
+        let root = self.root();
         let cancel = self.cancel.clone();
         tokio::spawn(async move {
             let _activity = activity;
@@ -1196,7 +1201,7 @@ mod tests {
         let runtime = AssistantRuntime::new(&temp);
         let server = asset("llama-cpu").expect("the processor build");
         let (key, pinned) = crate::install_record::key_file(server.url).expect("the pin names its key file");
-        let directory = runtime.root.join("runtime").join(server.unzip_into.unwrap());
+        let directory = runtime.root().join("runtime").join(server.unzip_into.unwrap());
         fs::create_dir_all(&directory).unwrap();
         fs::write(directory.join("llama-server.exe"), b"server").unwrap();
         let library = fs::File::create(directory.join(key)).unwrap();

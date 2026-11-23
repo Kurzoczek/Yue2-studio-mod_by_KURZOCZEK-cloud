@@ -34,7 +34,7 @@ pub(super) struct Options {
 }
 
 pub(super) fn model_dir(root: &FsPath) -> PathBuf {
-    root.join("audiocpp/models").join(DIRECTORY)
+    crate::model_storage::under(root, "audiocpp/models").join(DIRECTORY)
 }
 
 pub(super) fn missing_files(directory: &FsPath) -> Vec<&'static str> {

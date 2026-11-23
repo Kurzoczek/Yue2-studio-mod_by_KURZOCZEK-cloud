@@ -7,6 +7,7 @@ const en = {
 };
 export const windowAudioStrings: Record<Language, typeof en> = {
   en,
+  pl: { open: 'Nagraj dźwięk okna', window: 'Okno do nagrania', select: 'Wybierz okno', hint: 'Nagrywa dźwięk wybranego programu i jego procesów potomnych, do 30 sekund.', record: 'Zacznij nagrywać', stop: 'Zatrzymaj i odczytaj nuty' },
   ru: { open: 'Записать звук окна', window: 'Окно для записи', select: 'Выберите окно', hint: 'Записывается звук выбранного приложения и его дочерних процессов, до 30 секунд.', record: 'Начать запись', stop: 'Остановить и прочитать ноты' },
   zh: { open: '录制窗口声音', window: '录制窗口', select: '选择窗口', hint: '录制所选应用及其子进程的声音，最长 30 秒。', record: '开始录制', stop: '停止并识谱' },
   ja: { open: 'ウィンドウの音声を録音', window: '録音するウィンドウ', select: 'ウィンドウを選択', hint: '選択したアプリとその子プロセスの音声を最大30秒録音します。', record: '録音を開始', stop: '停止して採譜' },

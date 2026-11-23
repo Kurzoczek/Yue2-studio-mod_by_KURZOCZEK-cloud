@@ -35,6 +35,9 @@ fn recommended_profile() -> &'static str {
 pub struct ModelManager {
     root: PathBuf,
     state_path: PathBuf,
+    /// The studio's data folder, when the weights are its "models" download folder: then they are wherever that
+    /// folder is kept now (Debian build, `model_storage::folder`), asked each time.
+    mapped: Option<PathBuf>,
     http: reqwest::Client,
     state: Arc<RwLock<PersistentState>>,
     cancelled: Arc<AtomicBool>,
@@ -168,9 +171,12 @@ struct PersistentState {
 
 impl ModelManager {
     pub fn from_environment() -> Result<Self> {
-        let root = env::var_os("YUE_MODELS_ROOT")
-            .map(PathBuf::from)
-            .unwrap_or_else(default_model_root);
+        let explicit = env::var_os("YUE_MODELS_ROOT").map(PathBuf::from);
+        let mapped = if explicit.is_none() { crate::studio_data_root() } else { None };
+        let root = match &mapped {
+            Some(data_root) => crate::model_storage::folder(data_root, "models").join(ENGINE_ID),
+            None => explicit.unwrap_or_else(default_model_root),
+        };
         validate_model_root(&root)?;
         let state_path = root.join(".studio-download-state.json");
         let mut state = fs::read_to_string(&state_path)
@@ -184,6 +190,7 @@ impl ModelManager {
         Ok(Self {
             root,
             state_path,
+            mapped,
             http: crate::net::download_client(),
             state: Arc::new(RwLock::new(state)),
             cancelled: Arc::new(AtomicBool::new(false)),
@@ -192,8 +199,22 @@ impl ModelManager {
     }
 
     /// Where the weights live, for anything that needs to check a file exists.
-    pub fn models_directory(&self) -> &Path {
-        &self.root
+    pub fn models_directory(&self) -> PathBuf {
+        self.root()
+    }
+
+    fn root(&self) -> PathBuf {
+        match &self.mapped {
+            Some(data_root) => crate::model_storage::folder(data_root, "models").join(ENGINE_ID),
+            None => self.root.clone(),
+        }
+    }
+
+    fn state_file(&self) -> PathBuf {
+        match &self.mapped {
+            Some(_) => self.root().join(".studio-download-state.json"),
+            None => self.state_path.clone(),
+        }
     }
 
     pub fn catalog(&self) -> Catalog {
@@ -210,7 +231,7 @@ impl ModelManager {
     /// How much of a component a download left behind unfinished: its part file's pieces, or 0. The next download
     /// of it resumes them; removing the component takes them away.
     pub fn partial_bytes(&self, filename: &str) -> u64 {
-        crate::chunked::on_disk(&part_path(&self.root.join(filename)))
+        crate::chunked::on_disk(&part_path(&self.root().join(filename)))
     }
 
     /// `target` is the set the user actually selected. Progress and readiness
@@ -218,7 +239,7 @@ impl ModelManager {
     /// set is never told it is missing the hardware-recommended download.
     pub async fn status(&self, target: Option<InstallRequest>) -> ManagerStatus {
         let active = self.state.read().await.active.clone();
-        let root = self.root.clone();
+        let root = self.root();
         let components = self.catalog().components;
         // SHA-256 over a GGUF can take seconds. Keep it off the Tokio request
         // workers so setup polling and cancellation remain available.
@@ -256,7 +277,7 @@ impl ModelManager {
                 .iter()
                 .find(|component| component.id == *id)
                 .with_context(|| format!("unknown component '{id}'"))?;
-            let path = self.root.join(&component.filename);
+            let path = self.root().join(&component.filename);
             let size = fs::metadata(&path).map(|meta| meta.len()).unwrap_or(0);
             match fs::remove_file(&path) {
                 Ok(()) => {
@@ -268,7 +289,7 @@ impl ModelManager {
             }
             // A half-finished download of the same component is just as much
             // disk as the finished one.
-            let part = part_path(&self.root.join(&component.filename));
+            let part = part_path(&self.root().join(&component.filename));
             let _ = fs::remove_file(crate::chunked::manifest_path(&part));
             let _ = fs::remove_file(part);
         }
@@ -283,7 +304,7 @@ impl ModelManager {
                 .is_some_and(|job| job.component_ids.iter().any(|id| component_ids.contains(id)));
             if resumes_removed {
                 state.active = None;
-                let _ = persist_state_file(&self.state_path, &state);
+                let _ = persist_state_file(&self.state_file(), &state);
             }
         }
         Ok(RemovalReport { removed, freed_bytes })
@@ -296,9 +317,9 @@ impl ModelManager {
     /// Starts the one download the manager runs at a time: a second is refused while it runs, since four connections
     /// are the whole budget of the files' host.
     async fn start(&self, mut selection: ResolvedInstall) -> Result<DownloadJob> {
-        fs::create_dir_all(&self.root)
-            .with_context(|| format!("create model root {}", self.root.display()))?;
-        preflight_space(&self.root, &selection)?;
+        fs::create_dir_all(&self.root())
+            .with_context(|| format!("create model root {}", self.root().display()))?;
+        preflight_space(&self.root(), &selection)?;
         // Progress starts from what is already published on disk. This uses the
         // cheap size check rather than a SHA-256 sweep: hashing a resumed 10 GB
         // set here would block this request — and every setup/status poll behind
@@ -307,7 +328,7 @@ impl ModelManager {
         selection.already_present_bytes = selection
             .components
             .iter()
-            .filter(|component| published_component(&self.root.join(component.filename), component))
+            .filter(|component| published_component(&self.root().join(component.filename), component))
             .map(|component| component.bytes)
             .sum();
         let mut state = self.state.write().await;
@@ -368,7 +389,7 @@ impl ModelManager {
             (None, None) => return None,
         };
         let selection = resolve_install(request).ok()?;
-        let on_disk = |component: &Component| published_component(&self.root.join(component.filename), component);
+        let on_disk = |component: &Component| published_component(&self.root().join(component.filename), component);
         if !selection.components.iter().filter(|component| !optional_kind(component.kind)).all(on_disk) {
             return None;
         }
@@ -379,7 +400,7 @@ impl ModelManager {
     /// The bytes of a component on disk: all of them once it is published, else what its download left.
     pub fn arrived_bytes(&self, id: &str) -> u64 {
         components().iter().find(|component| component.id == id).map_or(0, |component| {
-            if published_component(&self.root.join(component.filename), component) { component.bytes } else { self.partial_bytes(component.filename) }
+            if published_component(&self.root().join(component.filename), component) { component.bytes } else { self.partial_bytes(component.filename) }
         })
     }
 
@@ -390,7 +411,7 @@ impl ModelManager {
             .into_iter()
             .find(|component| component.id == id && optional_kind(component.kind))
             .with_context(|| format!("'{id}' is not a component a set runs without"))?;
-        if verified_file_async(self.root.join(component.filename), component.clone()).await? {
+        if verified_file_async(self.root().join(component.filename), component.clone()).await? {
             return Ok(());
         }
         let total_bytes = component.bytes;
@@ -418,7 +439,7 @@ impl ModelManager {
                 .components
                 .iter()
                 .filter(|component| component.id != COMPANION && !optional_kind(component.kind))
-                .all(|component| published_component(&self.root.join(component.filename), component))
+                .all(|component| published_component(&self.root().join(component.filename), component))
         })
     }
 
@@ -428,7 +449,7 @@ impl ModelManager {
     fn installed_files_from_selection(&self, selection: ResolvedInstall, label: &str) -> Result<ProfileModelFiles> {
         let (mut transcriber_complete, mut decoder_there) = (true, true);
         for component in &selection.components {
-            let path = self.root.join(component.filename);
+            let path = self.root().join(component.filename);
             if !published_component(&path, component) {
                 if component.kind == "vae-decoder" {
                     decoder_there = false;
@@ -457,7 +478,7 @@ impl ModelManager {
                 if self.cancelled.load(Ordering::SeqCst) {
                     bail!("cancelled");
                 }
-                if verified_file_async(self.root.join(component.filename), component.clone()).await? {
+                if verified_file_async(self.root().join(component.filename), component.clone()).await? {
                     self.set_published_progress(&selection).await?;
                     continue;
                 }
@@ -508,7 +529,7 @@ impl ModelManager {
     /// is the whole budget: Hugging Face's Xet storage drops them above that,
     /// and a dropped range leaves a hole in a file of exactly the right size.
     async fn download_component(&self, component: &Component) -> Result<()> {
-        let target = self.root.join(component.filename);
+        let target = self.root().join(component.filename);
         let part = part_path(&target);
         let url = crate::net::model_url(&component.url());
         if let Some(folder) = target.parent() {
@@ -583,7 +604,7 @@ impl ModelManager {
         let published: u64 = selection
             .components
             .iter()
-            .filter(|component| published_component(&self.root.join(component.filename), component))
+            .filter(|component| published_component(&self.root().join(component.filename), component))
             .map(|component| component.bytes)
             .sum::<u64>()
             .saturating_sub(selection.already_present_bytes);
@@ -605,7 +626,7 @@ impl ModelManager {
     }
 
     fn persist_locked(&self, state: &PersistentState) -> Result<()> {
-        persist_state_file(&self.state_path, state)
+        persist_state_file(&self.state_file(), state)
     }
 }
 
@@ -1112,6 +1133,7 @@ mod tests {
         let manager = ModelManager {
             root: root.clone(),
             state_path: root.join("state.json"),
+            mapped: None,
             http: reqwest::Client::new(),
             state: Arc::new(RwLock::new(PersistentState::default())),
             cancelled: Arc::new(AtomicBool::new(false)),
@@ -1143,6 +1165,7 @@ mod tests {
         let manager = ModelManager {
             root: root.clone(),
             state_path: root.join("state.json"),
+            mapped: None,
             http: reqwest::Client::new(),
             state: Arc::new(RwLock::new(PersistentState::default())),
             cancelled: Arc::new(AtomicBool::new(false)),
@@ -1224,6 +1247,7 @@ mod tests {
         let manager = ModelManager {
             root: root.clone(),
             state_path: root.join("state.json"),
+            mapped: None,
             http: reqwest::Client::new(),
             state: Arc::new(RwLock::new(PersistentState::default())),
             cancelled: Arc::new(AtomicBool::new(false)),

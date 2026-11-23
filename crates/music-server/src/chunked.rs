@@ -478,12 +478,52 @@ fn progress_of(part: &Path, total: u64) -> std::collections::HashMap<u64, u64> {
 
 /// A piece's progress, noted after its bytes reached the disk: the other order loses a power cut, the manifest
 /// promising data that never landed.
-fn note(file: &File, manifest: &Mutex<File>, start: u64, have: u64) {
-    file.sync_data().ok();
-    if let Ok(mut manifest) = manifest.lock() {
-        manifest.write_all(&entry(start, have)).ok();
-        manifest.sync_data().ok();
+fn note(file: &File, manifest: Option<&Mutex<File>>, start: u64, have: u64) {
+    on_disk_time(|| {
+        file.sync_data().ok();
+        if let Some(Ok(mut manifest)) = manifest.map(Mutex::lock) {
+            manifest.write_all(&entry(start, have)).ok();
+            manifest.sync_data().ok();
+        }
+    })
+}
+
+/// Disk work done from the downloads' async code: on a slow disk (a USB stick) one write or one sync can wait many
+/// seconds for the disk, and done on the runtime's own thread it held up the connections served there - their
+/// servers saw an idle line and dropped it, and the download died of its retries. Here the runtime moves its other
+/// work off this thread first. (Outside a multi-threaded runtime - a test - it simply runs.)
+fn on_disk_time<T>(work: impl FnOnce() -> T) -> T {
+    match tokio::runtime::Handle::try_current().map(|handle| handle.runtime_flavor()) {
+        Ok(tokio::runtime::RuntimeFlavor::MultiThread) => tokio::task::block_in_place(work),
+        _ => work(),
     }
+}
+
+/// Whether the disk under `folder` is one where a file reserved at its whole size and filled at several places at
+/// once is trouble: NTFS (ntfs3 grows such sparse files badly past 4 GiB - the download stalls or fails with I/O
+/// errors), FUSE (ntfs-3g, exfat-fuse) and FAT/exFAT (no sparse files: the reservation writes gigabytes of zeros
+/// first). Downloads there are written in order, from the start, by one connection.
+#[cfg(target_os = "linux")]
+pub fn writes_in_order(folder: &Path) -> bool {
+    use std::os::unix::ffi::OsStrExt;
+    let Some(existing) = folder.ancestors().find(|path| path.exists()) else { return false };
+    let Ok(path) = std::ffi::CString::new(existing.as_os_str().as_bytes()) else { return false };
+    let mut info: libc::statfs = unsafe { std::mem::zeroed() };
+    // SAFETY: a valid C string and a zeroed statfs the call fills.
+    if unsafe { libc::statfs(path.as_ptr(), &mut info) } != 0 {
+        return false;
+    }
+    const NTFS3: i64 = 0x7366_746e;
+    const NTFS: i64 = 0x5346_544e;
+    const FUSE: i64 = 0x6573_5546;
+    const EXFAT: i64 = 0x2011_bab0;
+    const FAT: i64 = 0x4d44;
+    matches!(info.f_type as i64, NTFS3 | NTFS | FUSE | EXFAT | FAT)
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn writes_in_order(_folder: &Path) -> bool {
+    false
 }
 
 #[cfg(windows)]
@@ -512,6 +552,9 @@ pub async fn fetch(
     }
     if !plan.ranged || plan.total == 0 {
         return whole(http, url, part, written, cancel).await;
+    }
+    if part.parent().is_some_and(writes_in_order) {
+        return in_order(http, url, part, plan.total, written, cancel).await;
     }
 
     // A manifest speaks of the part file it was written beside: left after that file was removed, or beside one of
@@ -583,7 +626,7 @@ pub async fn fetch(
                     return;
                 }
                 let Some((start, end, have)) = ({ let mut queue = queue.lock().unwrap(); queue.pop_front() }) else { return };
-                if let Err(error) = piece(&http, &current, &file, start, end, have, &written, &stop, &manifest).await {
+                if let Err(error) = piece(&http, &current, &file, start, end, have, &written, &stop, Some(&manifest)).await {
                     let mut first_failure = failure.lock().unwrap();
                     if first_failure.is_none() {
                         *first_failure = Some(error.to_string());
@@ -617,7 +660,7 @@ async fn piece(
     mut have: u64,
     written: &Arc<AtomicU64>,
     stop: &Arc<AtomicBool>,
-    manifest: &Arc<Mutex<File>>,
+    manifest: Option<&Arc<Mutex<File>>>,
 ) -> Result<()> {
     let wanted = end - start + 1;
     let mut empty = 0u32;
@@ -657,7 +700,7 @@ async fn piece(
         // needs a moment to come back.
         tokio::time::sleep(std::time::Duration::from_millis(500 << empty.min(7))).await;
     }
-    note(file, manifest, start, wanted);
+    note(file, manifest.map(|manifest| &**manifest), start, wanted);
     Ok(())
 }
 
@@ -671,7 +714,7 @@ async fn once(
     written: &Arc<AtomicU64>,
     got: &mut u64,
     stop: &Arc<AtomicBool>,
-    manifest: &Arc<Mutex<File>>,
+    manifest: Option<&Arc<Mutex<File>>>,
 ) -> Result<()> {
     let from = start + have;
     let response = send(http, url, Some(format!("bytes={from}-{end}"))).await?;
@@ -695,20 +738,24 @@ async fn once(
         if offset + chunk.len() as u64 > end + 1 {
             bail!("range {from}-{end}: the server sent more than was asked for");
         }
-        let mut placed = 0usize;
-        while placed < chunk.len() {
-            let count = write_at(file, &chunk[placed..], offset + placed as u64).context("write range")?;
-            if count == 0 {
-                bail!("short write at {}", offset + placed as u64);
+        on_disk_time(|| -> Result<()> {
+            let mut placed = 0usize;
+            while placed < chunk.len() {
+                let count = write_at(file, &chunk[placed..], offset + placed as u64).context("write range")?;
+                if count == 0 {
+                    bail!("short write at {}", offset + placed as u64);
+                }
+                placed += count;
             }
-            placed += count;
-        }
+            Ok(())
+        })?;
+        crate::activity::received(chunk.len() as u64);
         offset += chunk.len() as u64;
         *got += chunk.len() as u64;
         written.fetch_add(chunk.len() as u64, Ordering::Relaxed);
         unnoted += chunk.len() as u64;
         if unnoted >= CHECKPOINT {
-            note(file, manifest, start, have + *got);
+            note(file, manifest.map(|manifest| &**manifest), start, have + *got);
             unnoted = 0;
         }
     }
@@ -728,10 +775,36 @@ async fn whole(http: &reqwest::Client, url: &str, part: &Path, written: Arc<Atom
             bail!("cancelled");
         }
         let chunk = chunk.context("read download chunk")?;
-        file.write_all(&chunk).context("write download chunk")?;
+        on_disk_time(|| file.write_all(&chunk)).context("write download chunk")?;
+        crate::activity::received(chunk.len() as u64);
         written.fetch_add(chunk.len() as u64, Ordering::Relaxed);
     }
     file.flush().context("flush download")?;
+    Ok(())
+}
+
+/// For a disk where a reserved, sparse file is trouble (`writes_in_order`): one connection, the bytes written in
+/// order so the file only ever grows at its end. What is already there - the file is as long as what reached it -
+/// is kept, and the rest asked for; the same retries, the same signed-address renewal, as the pieces.
+async fn in_order(http: &reqwest::Client, url: &str, part: &Path, total: u64, written: Arc<AtomicU64>, cancel: Arc<AtomicBool>) -> Result<()> {
+    // a part file left by the pieces is reserved at its whole size, holes and all: it is no measure of what arrived
+    let pieced = manifest_path(part).exists() || earlier_manifest_path(part).exists();
+    // kept, not emptied: what is there is what came
+    let file = OpenOptions::new().create(true).truncate(false).write(true).read(true).open(part).with_context(|| format!("open {}", part.display()))?;
+    let length = file.metadata().map(|meta| meta.len()).unwrap_or(0);
+    let have = if pieced || length > total { 0 } else { length };
+    // only ever shortened, never reserved: no sparse file
+    on_disk_time(|| file.set_len(have)).with_context(|| format!("trim {}", part.display()))?;
+    std::fs::remove_file(manifest_path(part)).ok();
+    std::fs::remove_file(earlier_manifest_path(part)).ok();
+    written.fetch_add(have, Ordering::Relaxed);
+    if have == total {
+        return Ok(());
+    }
+    let file = Arc::new(file);
+    let current = tokio::sync::Mutex::new(url.to_string());
+    piece(http, &current, &file, 0, total - 1, have, &written, &cancel, None).await?;
+    on_disk_time(|| file.sync_all()).ok();
     Ok(())
 }
 
@@ -865,6 +938,53 @@ mod tests {
         assert_eq!(*asked.lock().unwrap(), vec![(0, 199_999), (70_000, 199_999)]);
         assert!(!manifest_path(&part).exists());
         std::fs::remove_dir_all(&folder).ok();
+    }
+
+    /// On NTFS, FUSE, FAT and exFAT a download is written in order by one connection, never reserved as a sparse
+    /// file: a dropped connection asks for the rest, what was on the disk is kept, a part file the pieces left
+    /// (reserved, with holes) starts over. Multi-threaded, as the studio runs: the disk work leaves the runtime free.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn in_order_the_file_only_grows_at_its_end_and_resumes() {
+        let body: Vec<u8> = (0..300_000u32).map(|index| (index % 239) as u8).collect();
+        let total = body.len() as u64;
+        let (port, asked) = range_server(body.clone(), Some(90_000)).await;
+        // STUDIO_NOLINK_DIR: a folder on exFAT, FAT or NTFS, where `fetch` itself must choose this way
+        let base = std::env::var_os("STUDIO_NOLINK_DIR").map(std::path::PathBuf::from).unwrap_or_else(std::env::temp_dir);
+        let folder = base.join(format!("in-order-{}", uuid::Uuid::now_v7()));
+        std::fs::create_dir_all(&folder).unwrap();
+        let part = folder.join("model.gguf.part");
+        let http = reqwest::Client::builder().no_proxy().build().unwrap();
+        let url = format!("http://127.0.0.1:{port}/model.gguf");
+
+        // a part file from an earlier attempt, 40 000 bytes long: kept, and the rest asked for
+        std::fs::write(&part, &body[..40_000]).unwrap();
+        let written = Arc::new(AtomicU64::new(0));
+        if std::env::var_os("STUDIO_NOLINK_DIR").is_some() {
+            assert!(writes_in_order(&folder), "this disk is one to write in order on");
+            fetch(&http, &url, &part, Plan { total, ranged: true }, written.clone(), Arc::new(AtomicBool::new(false))).await.unwrap();
+        } else {
+            in_order(&http, &url, &part, total, written.clone(), Arc::new(AtomicBool::new(false))).await.unwrap();
+        }
+        assert_eq!(std::fs::read(&part).unwrap(), body);
+        assert_eq!(written.load(Ordering::Relaxed), total, "the bar counts every byte once");
+        // one connection, from where the file ended; cut, then asked for the rest
+        assert_eq!(*asked.lock().unwrap(), vec![(40_000, total - 1), (130_000, total - 1)]);
+
+        // a part file the pieces reserved at the whole size (with holes) is no measure of what arrived
+        std::fs::write(&part, vec![0u8; total as usize]).unwrap();
+        std::fs::write(manifest_path(&part), [entry(WHOLE, total), entry(0, 10)].concat()).unwrap();
+        asked.lock().unwrap().clear();
+        in_order(&http, &url, &part, total, Arc::new(AtomicU64::new(0)), Arc::new(AtomicBool::new(false))).await.unwrap();
+        assert_eq!(std::fs::read(&part).unwrap(), body);
+        assert_eq!(asked.lock().unwrap()[0], (0, total - 1));
+        assert!(!manifest_path(&part).exists());
+        std::fs::remove_dir_all(&folder).ok();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_linux_disk_keeps_the_parallel_pieces() {
+        assert!(!writes_in_order(&std::env::temp_dir()), "tmpfs, ext4, btrfs: sparse files are fine");
     }
 
     #[tokio::test]

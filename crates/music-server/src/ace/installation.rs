@@ -170,9 +170,9 @@ fn installation_from(
         .collect();
     let model_roots = match models_root {
         Some(root) => vec![root],
-        None => std::iter::once(data_root)
-            .chain(registered)
-            .map(|root| root.join("models").join(ENGINE_ID))
+        // the studio's own models wherever its "models" folder is kept, then those of the other studios
+        None => std::iter::once(crate::model_storage::folder(data_root, "models").join(ENGINE_ID))
+            .chain(registered.map(|root| root.join("models").join(ENGINE_ID)))
             .collect(),
     };
     Installation {
@@ -271,7 +271,7 @@ impl Installation {
         library.installed(None).into_iter().filter(|entry| {
             entry.meta.model.as_deref() == Some(family)
                 && entry.meta.slots.iter().any(|slot| slot == "dit")
-                && contains_adapter(library.root(), &entry.meta.id)
+                && contains_adapter(&library.root(), &entry.meta.id)
         }).collect()
     }
 
@@ -361,7 +361,7 @@ impl Installation {
         models: &Path,
         replay: Option<&serde_json::Value>,
     ) -> Result<Option<PathBuf>> {
-        let own = self.data_root.join("adapters").join(ENGINE_ID);
+        let own = crate::model_storage::folder(&self.data_root, "adapters").join(ENGINE_ID);
         let source_dir = self
             .legacy_adapters
             .iter()

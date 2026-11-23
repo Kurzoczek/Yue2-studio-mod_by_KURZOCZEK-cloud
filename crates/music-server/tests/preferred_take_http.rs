@@ -1,3 +1,5 @@
+mod common;
+
 use serde_json::{Value, json};
 use std::{fs, net::TcpListener, path::Path, time::Duration};
 use tokio::{
@@ -10,6 +12,7 @@ async fn studio(root: &Path, http: &reqwest::Client) -> anyhow::Result<(Child, S
     let address = socket.local_addr()?;
     drop(socket);
     let server = Command::new(env!("CARGO_BIN_EXE_music-server"))
+        .env("YUE_LOCAL_API_KEY", common::TEST_KEY)
         .env("YUE_STUDIO_PORT", address.port().to_string())
         .env("YUE_STUDIO_DATA_ROOT", root.join("data"))
         .env("YUE_ENGINE_BIN", root.join("absent-engine"))
@@ -56,7 +59,7 @@ async fn mcp(http: &reqwest::Client, base: &str, tool: &str, args: Value) -> any
 async fn preferred_take_survives_restart_and_reordering_without_touching_media()
 -> anyhow::Result<()> {
     let root = tempfile::tempdir()?;
-    let http = reqwest::Client::builder().no_proxy().build()?;
+    let http = common::keyed().no_proxy().build()?;
     let (mut server, base) = studio(root.path(), &http).await?;
     // The startup cover backfill otherwise embeds a generated APIC into these
     // hand-created WAVs on reopen, independently of the preferred take.

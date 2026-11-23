@@ -81,7 +81,7 @@ pub struct Transcriber {
 
 impl Transcriber {
     pub fn new(data_root: &Path, acpp: Arc<crate::acpp::Acpp>) -> Self {
-        Self { downloader: Downloader::new(data_root.join("midi")), acpp }
+        Self { downloader: Downloader::in_folder(data_root, "midi"), acpp }
     }
 
     pub fn downloader(&self) -> &Downloader {

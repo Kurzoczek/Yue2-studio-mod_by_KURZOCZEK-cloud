@@ -311,6 +311,9 @@ pub struct YueServerOptions {
     /// typed it - split like a shell would when the process starts. It is
     /// appended after every flag above, so it can also override one of them.
     pub extra_args: String,
+    /// Debian: threads, cores, priority, the systemd scope with the CPU and memory limits, and the flags of the
+    /// memory plan (Settings -> Memory / Processor).
+    pub limits: music_core::limits::Limits,
 }
 
 impl YueServerOptions {
@@ -341,6 +344,8 @@ impl YueServerOptions {
         if self.kv_q8 {
             arguments.push("--kv-q8".into());
         }
+        // The memory plan's flags (smaller VAE / acoustic tiles when the RAM limit is low), before the user's line.
+        arguments.extend(self.limits.args.iter().cloned());
         // Last, so a line of extra arguments can also override one of the
         // flags the studio set itself - the engine keeps the value it read
         // last.
@@ -548,7 +553,9 @@ impl YueServerSupervisor {
             return Ok(StartOutcome::Started);
         }
 
-        let mut command = Command::new(&self.config.executable);
+        // the engine itself, or `systemd-run --user --scope ... -- engine` with the limits of Settings -> Memory /
+        // Processor; the threads, cores and priority are set before exec either way
+        let mut command: Command = music_core::limits::command(&self.config.executable, &self.config.options.limits);
         if let Some(path) = music_core::process::own_libraries_first(&self.config.executable) {
             command.env("LD_LIBRARY_PATH", path);
         }
@@ -1074,6 +1081,7 @@ mod tests {
             kv_q8: true,
             cuda_folder: None,
             extra_args: String::new(),
+            limits: Default::default(),
         }
         .arguments();
         assert_eq!(

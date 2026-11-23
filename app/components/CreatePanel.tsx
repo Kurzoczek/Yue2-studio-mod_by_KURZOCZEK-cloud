@@ -862,7 +862,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({ onGenerate, onCancelJo
   const backingSongs = useLibrarySongs(bedOpen && musicEngine === 'local');
   const backingTracks = (backingSongs.data ?? []).filter(song => song.audioUrl && !song.isGenerating);
   const backingLabel = {
-    en: 'Sing over a library backing track', ru: 'Спеть поверх аккомпанемента из библиотеки',
+    en: 'Sing over a library backing track', pl: 'Zaśpiewaj na podkładzie z biblioteki', ru: 'Спеть поверх аккомпанемента из библиотеки',
     pt: 'Cantar sobre um acompanhamento da biblioteca', zh: '在曲库伴奏上演唱',
     ja: 'ライブラリの伴奏に歌を重ねる', ko: '라이브러리 반주에 노래 얹기',
   }[language];

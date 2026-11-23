@@ -22,7 +22,7 @@ pub(super) struct MagentaOptions {
 }
 
 pub(super) fn model_dir(root: &Path) -> PathBuf {
-    root.join(DIRECTORY)
+    crate::model_storage::under(root, DIRECTORY)
 }
 
 pub(super) fn missing_files(dir: &Path) -> Vec<&'static str> {

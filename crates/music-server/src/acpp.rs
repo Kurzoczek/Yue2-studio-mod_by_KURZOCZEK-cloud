@@ -240,7 +240,7 @@ pub struct Acpp {
 impl Acpp {
     pub fn new(data_root: &Path) -> Self {
         Self {
-            downloader: Downloader::new(data_root.join("audiocpp")),
+            downloader: Downloader::in_folder(data_root, "audiocpp"),
             installs: crate::acpp_install::RuntimeInstalls::default(),
             logs: data_root.join("logs").join("audiocpp"),
             cuda13_libraries: OnceLock::new(),

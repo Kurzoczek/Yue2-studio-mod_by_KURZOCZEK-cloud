@@ -7,6 +7,14 @@ export const musicSourceStrings = {
     keyMissing: 'Add an OpenRouter API key to generate music.', openCloudSettings: 'Open cloud settings',
     openResources: 'Install local models',
   },
+  pl: {
+    updateModel: 'Aktualizuj', transferStages: { verifying: 'Sprawdzam…', downloading: 'Pobieram…', activating: 'Włączam…' },
+    modelFamily: 'Model', refreshPackages: 'Odśwież modele do zainstalowania', installModel: 'Zainstaluj', installing: 'Instaluję…', engine: 'Silnik muzyki', local: 'Lokalny YuE2', model: 'Model muzyki OpenRouter', choose: 'Wybierz model',
+    loading: 'Wczytuję modele OpenRouter…', empty: 'Nie ma dostępnych modeli muzyki OpenRouter.',
+    catalogError: 'Nie udało się wczytać modeli muzyki OpenRouter.', refresh: 'Odśwież modele',
+    keyMissing: 'Dodaj klucz API OpenRouter, żeby generować muzykę.', openCloudSettings: 'Otwórz ustawienia chmury',
+    openResources: 'Zainstaluj modele lokalne',
+  },
   ru: {
     updateModel: 'Обновить', transferStages: { verifying: 'Проверка…', downloading: 'Скачивание…', activating: 'Активация…' },
     modelFamily: 'Модель', refreshPackages: 'Обновить список устанавливаемых моделей', installModel: 'Установить', installing: 'Установка…', engine: 'Музыкальный движок', local: 'Локальный YuE2', model: 'Музыкальная модель OpenRouter', choose: 'Выберите модель',
@@ -51,6 +59,7 @@ export const musicSourceStrings = {
 
 export const miDashengDurationStrings = {
   en: { limit: 'Duration limit (seconds)', hint: 'The model rounds the limit to audio blocks and can finish sooner.', requested: 'Requested duration limit', effective: 'Audio duration', default: 'Model default' },
+  pl: { limit: 'Limit długości (sekundy)', hint: 'Model zaokrągla limit do bloków audio i może skończyć wcześniej.', requested: 'Zamówiony limit długości', effective: 'Długość audio', default: 'Domyślne modelu' },
   ru: { limit: 'Предельная длительность, с', hint: 'Модель округляет предел до целого аудиоблока и может завершить генерацию раньше.', requested: 'Запрошенный предел', effective: 'Длительность аудио', default: 'По умолчанию в модели' },
   zh: { limit: '时长上限（秒）', hint: '模型会按音频块取整，也可能提前结束。', requested: '请求的时长上限', effective: '音频时长', default: '模型默认值' },
   ja: { limit: '生成時間の上限（秒）', hint: '上限は音声ブロック単位に丸められ、生成は早く終わる場合があります。', requested: '指定した生成時間の上限', effective: '音声の長さ', default: 'モデル既定値' },
@@ -68,6 +77,16 @@ export const nativeMusicSourceStrings = {
     h3PromptRequired: 'Enter an instrumental music prompt for MiniMax-H3.',
     settings: 'Generation settings', default: 'Engine default', duration: 'Duration (seconds)', steps: 'Steps',
     seed: 'Seed', lmSeed: 'Language model seed', scoreKept: 'The draft keeps your ABC score. This model does not use it.',
+  },
+  pl: {
+    model: 'Model lokalny', loading: 'Sprawdzam dostępność modelu…', error: 'Nie udało się sprawdzić dostępności modelu.',
+    engineMissing: 'Ten silnik nie jest zainstalowany.', empty: 'Nie ma dostępnych profili.', unavailable: 'Niedostępny',
+    chooseLegacyProfile: 'Wybierz profil, żeby zrobić nowe nagranie. Ten utwór używał tych plików modeli.',
+    styleAndLyricsRequired: 'Dla MiniMax Music3 wpisz i styl, i tekst.',
+    experimental: 'Eksperymentalny', manualWeights: 'Pobierz brakujące wagi ręcznie', modelDirectory: 'Włóż pliki do folderu danych studia, do', weightFiles: 'Pliki wag', modelLicense: 'Licencja modelu',
+    h3PromptRequired: 'Wpisz prompt muzyki instrumentalnej dla MiniMax-H3.',
+    settings: 'Ustawienia generowania', default: 'Domyślne silnika', duration: 'Czas trwania (sekundy)', steps: 'Kroki',
+    seed: 'Seed', lmSeed: 'Seed modelu językowego', scoreKept: 'Szkic zachowuje twoje nuty ABC. Ten model ich nie używa.',
   },
   ru: {
     model: 'Локальная модель', loading: 'Проверяем доступность моделей…', error: 'Не удалось проверить доступность моделей.',

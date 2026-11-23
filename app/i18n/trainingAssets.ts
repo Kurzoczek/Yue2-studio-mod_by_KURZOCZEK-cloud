@@ -16,6 +16,18 @@ const assets = {
 type AssetTitle = typeof assets[keyof typeof assets];
 
 const labels: Record<Language, Record<AssetTitle, string>> = {
+  pl: {
+    trainer: 'Trener',
+    captioner: 'Opis utworów',
+    base: 'Baza YuE2 do treningu (INT8 ConvRot)',
+    vae: 'VAE YuE2 z koderem',
+    tokenizer: 'Tokenizer semantyczny',
+    score: 'SheetSage2 do przepisywania na nuty',
+    aligner: 'Dopasowanie MMS (czasy tekstu)',
+    moss: 'Wieża audio MOSS-Music (F16)',
+    tempo: 'Beat This! (tempo)',
+    separator: 'HT-Demucs, 6 stemów',
+  },
   en: {
     trainer: 'Trainer',
     captioner: 'Captioner',

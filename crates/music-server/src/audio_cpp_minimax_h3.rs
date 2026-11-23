@@ -34,7 +34,7 @@ const MODEL_SOURCE: &str = "https://huggingface.co/audio-cpp/audio.cpp-gguf/tree
 const MODEL_LICENSE: &str = "https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE";
 
 pub(super) fn model_dir(root: &Path) -> PathBuf {
-    root.join("audiocpp/models").join(MODEL_DIR)
+    crate::model_storage::under(root, "audiocpp/models").join(MODEL_DIR)
 }
 
 pub(super) fn missing_files(directory: &Path) -> Vec<&'static str> {

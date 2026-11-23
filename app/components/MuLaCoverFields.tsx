@@ -4,6 +4,7 @@ import { useLibrarySongs } from '../services/studioQueries';
 
 const strings = {
   en: { original: 'Original song', choose: 'Choose from the library', install: 'Install resampler', installing: 'Installing resampler…', error: 'Could not install the MuLaCover resampler.', license: 'Noncommercial weights and output terms' },
+  pl: { original: 'Oryginalny utwór', choose: 'Wybierz z biblioteki', install: 'Zainstaluj resampler', installing: 'Instaluję resampler…', error: 'Nie udało się zainstalować resamplera MuLaCover.', license: 'Niekomercyjne warunki wag i wyników' },
   ru: { original: 'Исходная песня', choose: 'Выберите из библиотеки', install: 'Установить ресемплер', installing: 'Устанавливается ресемплер…', error: 'Не удалось установить ресемплер MuLaCover.', license: 'Условия некоммерческого использования весов и результатов' },
   zh: { original: '原曲', choose: '从资料库选择', install: '安装重采样器', installing: '正在安装重采样器…', error: '无法安装 MuLaCover 重采样器。', license: '权重和输出的非商业使用条款' },
   ja: { original: '原曲', choose: 'ライブラリから選択', install: 'リサンプラーをインストール', installing: 'リサンプラーをインストール中…', error: 'MuLaCover のリサンプラーをインストールできませんでした。', license: '重みと出力の非商用利用条件' },

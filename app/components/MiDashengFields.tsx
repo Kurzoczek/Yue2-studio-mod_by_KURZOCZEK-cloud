@@ -20,6 +20,10 @@ const labels = {
     caption: 'Scene summary', music: 'Music', speech_text: 'Spoken words', speech_style: 'Voice and delivery',
     effects: 'Sound effects', environment: 'Ambience', speechOmitted: 'Leave spoken words empty to omit speech.',
   },
+  pl: {
+    caption: 'Podsumowanie sceny', music: 'Muzyka', speech_text: 'Wypowiadane słowa', speech_style: 'Głos i sposób mówienia',
+    effects: 'Efekty dźwiękowe', environment: 'Tło dźwiękowe', speechOmitted: 'Zostaw wypowiadane słowa puste, żeby pominąć mowę.',
+  },
   ru: {
     caption: 'Описание сцены', music: 'Музыка', speech_text: 'Текст речи', speech_style: 'Голос и манера речи',
     effects: 'Звуковые эффекты', environment: 'Звуки окружения', speechOmitted: 'Оставьте текст пустым для генерации без речи.',

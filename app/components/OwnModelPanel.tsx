@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ExternalLink, FolderOpen, Loader2, Play, RotateCw, Square, Trash2 } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
 import { poll } from '../services/poll';
+import { ChooseDownloadFolder } from './ChooseFolder';
 
 export type CommunityModel = {
   id: string;
@@ -199,6 +200,8 @@ export const OwnModelPanel: React.FC = () => {
           <FolderOpen size={13} />
           {t('openFolder')}
         </button>
+        {/* the own model lives in the model sets' folder: chosen here, not only shown */}
+        <ChooseDownloadFolder folder="models" onMoved={() => void load()} />
         <button
           type="button"
           onClick={() => void load()}

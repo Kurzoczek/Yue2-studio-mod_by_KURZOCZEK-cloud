@@ -3,6 +3,7 @@ import { fetchSa3Training, installSa3Training, startSa3Training, type Dataset, t
 
 export const sa3TrainingText: Record<string, [string, string, string, string, string, string, string]> = {
   en: ['Training engine', 'Instrumental songs with a style description are required.', 'An NVIDIA CUDA card is required.', 'HOT-Step CUDA trainer is unavailable.', 'Install training pack', 'Installing training pack…', 'Crop duration (s)'],
+  pl: ['Silnik treningu', 'Potrzebne są utwory instrumentalne z opisem stylu.', 'Potrzebna jest karta NVIDIA z CUDA.', 'Trener HOT-Step na CUDA jest niedostępny.', 'Zainstaluj pakiet treningu', 'Instaluję pakiet treningu…', 'Długość wycinka (s)'],
   ru: ['Движок обучения', 'Нужны инструментальные треки с описанием стиля.', 'Требуется видеокарта NVIDIA с CUDA.', 'Тренер HOT-Step CUDA недоступен.', 'Установить пакет обучения', 'Устанавливается пакет обучения…', 'Длительность фрагмента (с)'],
   zh: ['训练引擎', '需要带有风格描述的纯音乐曲目。', '需要支持 CUDA 的 NVIDIA 显卡。', 'HOT-Step CUDA 训练器不可用。', '安装训练包', '正在安装训练包…', '片段时长（秒）'],
   ja: ['学習エンジン', 'スタイルを記述したインスト曲が必要です。', 'NVIDIA CUDA 対応 GPU が必要です。', 'HOT-Step CUDA 学習エンジンを利用できません。', '学習パックをインストール', '学習パックをインストール中…', '区間の長さ（秒）'],
@@ -12,6 +13,7 @@ export const sa3TrainingText: Record<string, [string, string, string, string, st
 
 const heartSamples: Record<string, string> = {
   en: 'Describe the style of every track and add lyrics to vocal tracks.',
+  pl: 'Opisz styl każdego utworu i dodaj tekst do utworów z wokalem.',
   ru: 'Опишите стиль каждого трека и добавьте текст для треков с вокалом.',
   zh: '请描述每首曲目的风格，并为人声曲目添加歌词。',
   ja: '各曲のスタイルを記述し、歌入りの曲には歌詞を追加してください。',

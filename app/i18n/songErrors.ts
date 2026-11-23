@@ -1,3 +1,4 @@
+import { PL_SONG_ERRORS } from './plSongErrors';
 import type { Language } from './translations';
 import { ptExitMeanings } from './ptExtra';
 
@@ -201,11 +202,21 @@ const PT: ErrorTexts = {
   not_audio: 'A placa gráfica calculou nesta música algo que não é som ({line}), por isso o motor parou-a em vez de gravar silêncio. Fazer a música de novo: uma nova tentativa costuma sair bem.',
 };
 
-const BY_LANGUAGE: Record<Language, ErrorTexts> = { en: EN, ru: RU, zh: ZH, ja: JA, ko: KO, pt: PT };
+const BY_LANGUAGE: Record<Language, ErrorTexts> = { en: EN, pl: PL_SONG_ERRORS, ru: RU, zh: ZH, ja: JA, ko: KO, pt: PT };
 
 // What an exit status of the engine means, by the service's key (song_errors.rs `EXIT_MEANINGS`), written before
 // "exit code" in the templates; `none` is a status without a meaning.
 const EXIT_MEANINGS: Record<Language, Record<string, string>> = {
+  pl: {
+    access_violation: 'awaria: naruszenie dostępu do pamięci, ',
+    illegal_instruction: 'instrukcja, której ten procesor nie ma, ',
+    aborted: 'awaria: silnik przerwał pracę, ',
+    stack_overflow: 'awaria: przepełnienie stosu, ',
+    corrupted_memory: 'awaria: uszkodzona pamięć, ',
+    library: 'nie wczytała się biblioteka silnika, ',
+    out_of_memory: 'komputerowi zabrakło pamięci, ',
+    none: '',
+  },
   en: {
     access_violation: 'a crash: an access violation, ',
     illegal_instruction: 'an instruction this processor does not have, ',

@@ -52,7 +52,7 @@ fn demuxer(name: &str) -> Option<&'static str> {
 }
 
 pub(super) fn model_dir(root: &Path) -> PathBuf {
-    root.join(DIRECTORY)
+    crate::model_storage::under(root, DIRECTORY)
 }
 
 pub(super) fn missing_files(directory: &Path) -> Vec<&'static str> {

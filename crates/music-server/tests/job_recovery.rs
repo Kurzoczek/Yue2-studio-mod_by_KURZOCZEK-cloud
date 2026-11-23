@@ -1,3 +1,5 @@
+mod common;
+
 use axum::{Json, Router, routing::get};
 use rusqlite::Connection;
 use serde_json::{Value, json};
@@ -22,8 +24,9 @@ async fn reopening_with_a_cloud_provider_keeps_the_original_request_without_a_ph
     let port = socket.local_addr().unwrap().port();
     drop(socket);
     let url = format!("http://127.0.0.1:{port}");
-    let http = reqwest::Client::builder().no_proxy().build().unwrap();
+    let http = common::keyed().no_proxy().build().unwrap();
     let mut command = Command::new(env!("CARGO_BIN_EXE_music-server"));
+    command.env("YUE_LOCAL_API_KEY", common::TEST_KEY);
     command
         .env("YUE_STUDIO_PORT", port.to_string())
         .env("YUE_ENGINE_PORT", engine_port.to_string())

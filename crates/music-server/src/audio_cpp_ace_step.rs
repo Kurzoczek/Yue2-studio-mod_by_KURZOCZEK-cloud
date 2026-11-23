@@ -24,7 +24,7 @@ pub(super) const ASSET: downloads::Asset = downloads::Asset {
 };
 
 pub(super) fn model_dir(root: &FsPath) -> PathBuf {
-    root.join("audiocpp/models").join(DIRECTORY)
+    crate::model_storage::under(root, "audiocpp/models").join(DIRECTORY)
 }
 
 pub(super) fn missing_files(directory: &FsPath) -> Vec<&'static str> {

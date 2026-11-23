@@ -315,6 +315,15 @@ async fn restart_offline_studio(app: tauri::AppHandle) -> Result<(), String> {
     }
 }
 
+/// What every window of the app runs before its page: the local API key, handed only to the app's own pages
+/// (tauri://localhost, tauri.localhost) - a page of anywhere else loaded into the window never sees it.
+fn local_key_script() -> String {
+    let key = serde_json::to_string(&music_server::local_api_key()).unwrap_or_else(|_| "\"\"".into());
+    format!(
+        "(function(){{try{{if(location.protocol==='tauri:'||location.hostname==='tauri.localhost'){{Object.defineProperty(window,'__STUDIO_KEY__',{{value:{key},writable:false,configurable:false}});}}}}catch(e){{}}}})();"
+    )
+}
+
 /// One request to the studio's own service: its body; `Err(true)` when it took
 /// the request and gave nothing readable back, `Err(false)` when nothing listens.
 fn service_call(method: &str, path: &str, wait: Duration) -> Result<String, bool> {
@@ -329,7 +338,9 @@ fn service_call_at(port: u16, method: &str, path: &str, wait: Duration) -> Resul
     };
     let _ = stream.set_read_timeout(Some(wait));
     let _ = stream.set_write_timeout(Some(wait));
-    let request = format!("{method} {path} HTTP/1.0\r\nHost: 127.0.0.1:{port}\r\nContent-Length: 0\r\n\r\n");
+    // the local API key (Debian hardening) goes to this studio's own service only, never to another port
+    let key = if port == SERVER_PORT { format!("Authorization: Bearer {}\r\n", music_server::local_api_key()) } else { String::new() };
+    let request = format!("{method} {path} HTTP/1.0\r\nHost: 127.0.0.1:{port}\r\n{key}Content-Length: 0\r\n\r\n");
     stream.write_all(request.as_bytes()).map_err(|_| true)?;
     let mut response = String::new();
     let read = if path == "/health" {
@@ -972,6 +983,7 @@ async fn open_visualizer_window(app: tauri::AppHandle) -> Result<(), String> {
     }
     let title = format!("{} - Visualizer", app.package_info().name);
     let window = tauri::WebviewWindowBuilder::new(&app, "visualizer", tauri::WebviewUrl::App("visualizer.html".into()))
+        .initialization_script(local_key_script())
         .title(title)
         .inner_size(960.0, 540.0)
         .min_inner_size(320.0, 200.0);
@@ -997,6 +1009,11 @@ async fn open_audio_editor_window(app: tauri::AppHandle, url: String) -> Result<
     // the editor is a page of the studio's own service: no other address gets a window of the app
     if !matches!(target.host_str(), Some("127.0.0.1" | "localhost")) {
         return Err(format!("The audio editor opens pages of the studio's own service only, not {}", target.host_str().unwrap_or("an address without a host")));
+    }
+    // the editor's page is the service's: the local key once in its address, which the service turns into a cookie
+    let mut target = target;
+    if target.port() == Some(SERVER_PORT) && !target.query_pairs().any(|(name, _)| name == "studio_key") {
+        target.query_pairs_mut().append_pair("studio_key", &music_server::local_api_key());
     }
     if let Some(window) = app.get_webview_window("audio-editor") {
         window.show().map_err(|error| error.to_string())?;
@@ -1264,7 +1281,7 @@ pub fn run() {
                 .cloned()
                 .expect("the main window is declared in tauri.conf.json");
             let title = format!("{} {}{}", window_config.title, app.package_info().version, if is_portable() { " Portable" } else { "" });
-            let window = tauri::WebviewWindowBuilder::from_config(app.handle(), &window_config)?.title(title);
+            let window = tauri::WebviewWindowBuilder::from_config(app.handle(), &window_config)?.title(title).initialization_script(local_key_script());
             // Started for an agent: the page is made, as parts of the studio run in it, but the window never comes up
             // or takes the focus - no taskbar button, nothing taken from what the person is doing. The size, place and
             // maximised state window-state restores into it wait, hidden, for the first show: tao moves and sizes a
@@ -1421,6 +1438,8 @@ pub fn run() {
                 std::thread::spawn(move || confirm_quit(&app));
             }
             tauri::RunEvent::Exit => {
+                // a clean close: the next start is not an unexpected end (Settings -> Diagnostics)
+                music_server::clean_exit();
                 music_server::stop_engine();
                 // the servers and engines the studio started end with it, also where no job object ends them (macOS)
                 music_engine::process_group::terminate_group_members();

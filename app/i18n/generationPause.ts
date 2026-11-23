@@ -16,6 +16,7 @@ const en = {
 
 export const generationPauseStrings: Record<Language, typeof en> = {
   en,
+  pl: { label: 'Przerwa między generowaniami', none: 'Bez przerwy', fixed: 'Stała', random: 'Losowy zakres', minutes: 'Przerwa w minutach', minimum: 'Najkrótsza przerwa w minutach', maximum: 'Najdłuższa przerwa w minutach', unit: 'min', countdown: 'Następne generowanie za {time}', cancel: 'Anuluj następne generowanie', invalid: 'Podaj przerwę od zera minut w górę; najkrótsza nie może być dłuższa niż najdłuższa.' },
   ru: { label: 'Пауза между генерациями', none: 'Без паузы', fixed: 'Фиксированная', random: 'Случайный интервал', minutes: 'Пауза в минутах', minimum: 'Минимальная пауза в минутах', maximum: 'Максимальная пауза в минутах', unit: 'мин', countdown: 'Следующая генерация через {time}', cancel: 'Отменить следующую генерацию', invalid: 'Укажите паузу от нуля минут. Минимум должен быть не больше максимума.' },
   zh: { label: '生成间隔', none: '无间隔', fixed: '固定间隔', random: '随机范围', minutes: '间隔分钟数', minimum: '最短间隔分钟数', maximum: '最长间隔分钟数', unit: '分钟', countdown: '距离下一次生成还有 {time}', cancel: '取消下一次生成', invalid: '请输入非负间隔。最短间隔不能超过最长间隔。' },
   ja: { label: '生成の間隔', none: '間隔なし', fixed: '固定', random: 'ランダムな範囲', minutes: '間隔（分）', minimum: '最短間隔（分）', maximum: '最長間隔（分）', unit: '分', countdown: '次の生成まで {time}', cancel: '次の生成をキャンセル', invalid: '0分以上の間隔を入力してください。最短間隔は最長間隔以下にしてください。' },

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
+import { ChooseDownloadFolder } from './ChooseFolder';
 
 export type RuntimeArchive = { url: string; path: string };
 
@@ -61,7 +62,7 @@ const Address: React.FC<{ label: string; url: string }> = ({ label, url }) => (
  * folder they go into: for a network the studio's own download does not get through, and for anyone who fetched
  * a file from the repository's latest revision, which can be another build under the same name.
  */
-export const ManualDownloads: React.FC<{ files: ManualFile[]; folder?: string | null; mirror: boolean }> = ({ files, folder, mirror }) => {
+export const ManualDownloads: React.FC<{ files: ManualFile[]; folder?: string | null; mirror: boolean; onMoved?: () => void }> = ({ files, folder, mirror, onMoved }) => {
   const { t } = useI18n();
   if (files.length === 0) return null;
   return (
@@ -86,6 +87,8 @@ export const ManualDownloads: React.FC<{ files: ManualFile[]; folder?: string | 
             <span className="w-24 shrink-0 text-zinc-500 dark:text-zinc-400">{t('manualFolder')}</span>
             <span className="min-w-0 flex-1 break-all font-mono text-zinc-700 dark:text-zinc-200">{folder}</span>
             <CopyButton value={folder} />
+            {/* the model sets' folder: chosen here, not only shown */}
+            <ChooseDownloadFolder folder="models" onMoved={onMoved} />
           </div>
         )}
       </div>

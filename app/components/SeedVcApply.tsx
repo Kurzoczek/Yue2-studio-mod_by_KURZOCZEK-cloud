@@ -9,6 +9,7 @@ const accompaniment = ['drums', 'bass', 'other', 'guitar', 'piano'];
 
 const strings = {
   en: ['Voice sample (1–25 seconds)', 'Separate the song into vocals and accompaniment first.', 'Get the Seed-VC model', 'Place the downloaded file here', 'Install audio.cpp in the separation settings.', 'Convert with Seed-VC', 'Converting the vocal…', 'Listen to the new take', 'Check availability'],
+  pl: ['Próbka głosu (1–25 sekund)', 'Najpierw rozdziel utwór na wokal i akompaniament.', 'Pobierz model Seed-VC', 'Włóż pobrany plik tutaj', 'Zainstaluj audio.cpp w ustawieniach rozdziału.', 'Zamień głos przez Seed-VC', 'Zamieniam wokal…', 'Posłuchaj nowego nagrania', 'Sprawdź dostępność'],
   ru: ['Образец голоса (1–25 секунд)', 'Сначала разделите песню на вокал и аккомпанемент.', 'Скачать модель Seed-VC', 'Поместите скачанный файл по этому пути', 'Установите audio.cpp в настройках разделения.', 'Заменить голос через Seed-VC', 'Преобразуем вокал…', 'Слушать новый дубль', 'Проверить готовность'],
   ko: ['음성 샘플 (1–25초)', '먼저 곡을 보컬과 반주로 분리하세요.', 'Seed-VC 모델 받기', '다운로드한 파일을 여기에 넣으세요', '분리 설정에서 audio.cpp를 설치하세요.', 'Seed-VC로 변환', '보컬 변환 중…', '새 버전 듣기', '사용 가능 여부 확인'],
   zh: ['声音样本（1–25 秒）', '先将歌曲分离为人声和伴奏。', '获取 Seed-VC 模型', '将下载的文件放到此处', '在分离设置中安装 audio.cpp。', '使用 Seed-VC 转换', '正在转换人声…', '试听新版本', '检查可用性'],

@@ -6,6 +6,7 @@ export type HotStepSa3Draft = NonNullable<YueRequest['hotstep_sa3']>;
 
 const labels: Record<string, [string, string, string, string]> = {
   en: ['Sampler', 'Adapter', 'None', 'Adapter strength'],
+  pl: ['Sampler', 'Adapter', 'Brak', 'Siła adaptera'],
   ru: ['Сэмплер', 'Адаптер', 'Без адаптера', 'Сила адаптера'],
   zh: ['采样器', '适配器', '不使用适配器', '适配器强度'],
   ja: ['サンプラー', 'アダプター', 'アダプターなし', 'アダプター強度'],

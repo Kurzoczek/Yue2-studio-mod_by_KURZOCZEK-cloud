@@ -1,4 +1,5 @@
 #![cfg(target_os = "linux")]
+mod common;
 
 #[tokio::test]
 async fn an_empty_system_trust_store_reports_how_to_start_the_studio() {
@@ -12,6 +13,7 @@ async fn an_empty_system_trust_store_reports_how_to_start_the_studio() {
     drop(listener);
 
     let mut service = tokio::process::Command::new(env!("CARGO_BIN_EXE_music-server"));
+    service.env("YUE_LOCAL_API_KEY", common::TEST_KEY);
     service
         .env("YUE_STUDIO_PORT", port.to_string())
         .env("YUE_STUDIO_DATA_ROOT", root.path())

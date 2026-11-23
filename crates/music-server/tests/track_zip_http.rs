@@ -1,3 +1,5 @@
+mod common;
+
 use serde_json::{Value, json};
 use std::{
     fs,
@@ -18,6 +20,7 @@ async fn exports_same_title_originals_and_reports_the_failing_song() -> anyhow::
     let address = socket.local_addr()?;
     drop(socket);
     let mut server = Command::new(env!("CARGO_BIN_EXE_music-server"))
+        .env("YUE_LOCAL_API_KEY", common::TEST_KEY)
         .env("YUE_STUDIO_PORT", address.port().to_string())
         .env("YUE_STUDIO_DATA_ROOT", &data)
         .env("YUE_ENGINE_BIN", root.path().join("absent-engine"))
@@ -28,7 +31,7 @@ async fn exports_same_title_originals_and_reports_the_failing_song() -> anyhow::
         .env("TMPDIR", root.path())
         .kill_on_drop(true)
         .spawn()?;
-    let http = reqwest::Client::builder().no_proxy().build()?;
+    let http = common::keyed().no_proxy().build()?;
     let base = format!("http://{address}");
     timeout(Duration::from_secs(30), async {
         while !http

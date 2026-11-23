@@ -143,7 +143,7 @@ const SVC: downloads::Asset = downloads::Asset {
 };
 
 pub(super) fn model_dir(root: &Path) -> PathBuf {
-    root.join("audiocpp/models").join(FAMILY)
+    crate::model_storage::under(root, "audiocpp/models").join(FAMILY)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

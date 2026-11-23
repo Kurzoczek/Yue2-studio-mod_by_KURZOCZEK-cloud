@@ -2,6 +2,15 @@ import type { StyleRule } from '../services/songWriting';
 import type { Language } from './translations';
 
 export const styleAdvice: Record<Language, Record<StyleRule | 'title', string>> = {
+  pl: {
+    title: 'Wskazówki do stylu', language: 'Zacznij od języka wokalu albo od „instrumental”.',
+    tempo: 'Dla określonego tempa zakończ znacznikiem, np. „120 BPM”.', length: 'Spróbuj opisać pełny styl w 12–50 słowach.',
+    numbers: 'Opisz brzmienie liczb i pomiarów muzycznymi pojęciami.', negative: 'Nazwij brzmienie, które chcesz, np. „solo piano”.',
+    instruction: 'Zamień polecenia na krótkie muzyczne określenia.', artist: 'Opisz brzmienie albo sposób śpiewania wykonawcy.',
+    genres: 'Wybierz główny gatunek, żeby aranżacja miała wyraźny kierunek.', quality: 'Nazwij instrument albo fakturę, która daje to brzmienie.',
+    instruments: 'Wybierz cztery do sześciu instrumentów na pierwszy plan.', voice: 'Opisz rejestr, barwę albo sposób śpiewania głosu.',
+    lyrics: 'Przenieś linijki tekstu i znaczniki sekcji do pola Tekst.',
+  },
   en: {
     title: 'Style suggestions', language: 'Start with the language of the vocals, or “instrumental”.',
     tempo: 'For a specific tempo, end with a tag such as “120 BPM”.', length: 'Try 12–50 words for a complete style.',

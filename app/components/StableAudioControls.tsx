@@ -36,6 +36,7 @@ export function stableAudioOptions(draft: StableAudioDraft): StableAudioOptions 
 
 const labels = {
   en: ['Negative prompt', 'Sampler', 'APG scale', 'Duration padding (s)', 'Default', 'Enter a music prompt.'],
+  pl: ['Negatywny prompt', 'Sampler', 'Skala APG', 'Dopełnienie długości (s)', 'Domyślne', 'Wpisz prompt muzyczny.'],
   ru: ['Негативный промпт', 'Сэмплер', 'Масштаб APG', 'Запас длительности (с)', 'По умолчанию', 'Введите описание музыки.'],
   zh: ['负面提示词', '采样器', 'APG 系数', '额外时长（秒）', '默认', '请输入音乐提示词。'],
   ja: ['ネガティブプロンプト', 'サンプラー', 'APG スケール', '追加の長さ（秒）', '既定値', '音楽のプロンプトを入力してください。'],

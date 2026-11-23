@@ -37,7 +37,7 @@ cmake -S "$worktree/engine" -B "$build" -G Ninja -DCMAKE_BUILD_TYPE=Release \
 # the backends are modules nothing links against, so each is a target of its own
 variants="$(sed -n 's/^build \(ggml-cpu-[a-z0-9_]*\): phony.*/\1/p' "$build/build.ninja" | sort -u | tr '\n' ' ')"
 [ -n "$variants" ] || { echo "[ERROR] the configured build has no processor variants of ggml-cpu" >&2; exit 1; }
-cmake --build "$build" --config Release --target ace-midi ace-caption $variants -j "$(getconf _NPROCESSORS_ONLN)"
+cmake --build "$build" --config Release --target ace-midi ace-caption $variants -j "${BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN)}"
 
 mkdir -p "$output"
 cp "$build/ace-midi" "$output/music-midi"

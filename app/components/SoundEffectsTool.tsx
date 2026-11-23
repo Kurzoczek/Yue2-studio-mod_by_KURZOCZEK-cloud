@@ -7,6 +7,7 @@ import { nativeMusicSourceStrings, musicSourceStrings } from '../i18n/musicSourc
 
 const strings = {
   en: { heading: 'Sound effects', description: 'Sound description (English or Chinese)', create: 'Generate sound effect', checking: 'Checking MOSS-SoundEffect…', unavailable: 'MOSS-SoundEffect is unavailable.', saved: 'Sound effects are saved in the library.' },
+  pl: { heading: 'Efekty dźwiękowe', description: 'Opis dźwięku (po angielsku albo po chińsku)', create: 'Wygeneruj efekt dźwiękowy', checking: 'Sprawdzam MOSS-SoundEffect…', unavailable: 'MOSS-SoundEffect jest niedostępny.', saved: 'Efekty dźwiękowe są zapisywane w bibliotece.' },
   ru: { heading: 'Звуковые эффекты', description: 'Описание звука на английском или китайском', create: 'Создать звуковой эффект', checking: 'Проверяется MOSS-SoundEffect…', unavailable: 'MOSS-SoundEffect недоступен.', saved: 'Эффекты сохраняются в библиотеке.' },
   zh: { heading: '音效', description: '声音描述（英语或中文）', create: '生成音效', checking: '正在检查 MOSS-SoundEffect…', unavailable: 'MOSS-SoundEffect 不可用。', saved: '音效会保存到资料库。' },
   ja: { heading: '効果音', description: '音の説明（英語または中国語）', create: '効果音を生成', checking: 'MOSS-SoundEffect を確認しています…', unavailable: 'MOSS-SoundEffect は利用できません。', saved: '効果音はライブラリに保存されます。' },

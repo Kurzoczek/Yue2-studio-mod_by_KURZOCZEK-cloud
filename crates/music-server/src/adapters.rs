@@ -255,7 +255,7 @@ pub fn engine_views(props: &Value, slot_ids: &[&str]) -> BTreeMap<String, Engine
 }
 
 pub struct AdapterLibrary {
-    root: PathBuf,
+    root: crate::downloads::Place,
     engine: String,
     downloader: Downloader,
     /// The catalogue entries of the download running now. Several go as one
@@ -267,11 +267,14 @@ pub struct AdapterLibrary {
 impl AdapterLibrary {
     /// The library of one engine's adapters, under the studio data root.
     pub fn new(data_root: &Path, engine: &str) -> Self {
-        Self::at(data_root.join("adapters"), engine)
+        // wherever the "adapters" download folder is kept, asked each time
+        let root = crate::downloads::Place::download(data_root, "adapters", "");
+        let runtime = crate::downloads::Place::download(data_root, "adapters", "runtime");
+        Self { downloader: Downloader::at_places(root.clone(), runtime), root, engine: engine.to_string(), installing: std::sync::Mutex::new(Vec::new()) }
     }
 
     pub(crate) fn at(root: PathBuf, engine: &str) -> Self {
-        Self { downloader: Downloader::new(root.clone()), root, engine: engine.to_string(), installing: std::sync::Mutex::new(Vec::new()) }
+        Self { downloader: Downloader::new(root.clone()), root: crate::downloads::Place::Fixed(root), engine: engine.to_string(), installing: std::sync::Mutex::new(Vec::new()) }
     }
 
     fn installing_now(&self) -> std::sync::MutexGuard<'_, Vec<String>> {
@@ -287,21 +290,21 @@ impl AdapterLibrary {
     }
 
     /// The folder the engine is pointed at.
-    pub fn root(&self) -> &Path {
-        &self.root
+    pub fn root(&self) -> PathBuf {
+        self.root.path()
     }
 
     fn folder(&self, id: &str) -> Result<PathBuf> {
         if id.is_empty() || id.starts_with('.') || id.contains(['/', '\\', ':']) {
             bail!("not an adapter id: {id}");
         }
-        Ok(self.root.join(id))
+        Ok(self.root().join(id))
     }
 
     /// Reserve an independent folder, cleaned up if the files or metadata cannot be saved.
     fn new_import(&self, name: &str) -> Result<(String, tempfile::TempDir)> {
-        fs::create_dir_all(&self.root)?;
-        let folder = tempfile::Builder::new().prefix(&format!("{}-", slug(name))).rand_bytes(12).tempdir_in(&self.root)?;
+        fs::create_dir_all(&self.root())?;
+        let folder = tempfile::Builder::new().prefix(&format!("{}-", slug(name))).rand_bytes(12).tempdir_in(&self.root())?;
         let id = folder.path().file_name().context("missing adapter folder name")?.to_string_lossy().into_owned();
         Ok((id, folder))
     }
@@ -323,7 +326,7 @@ impl AdapterLibrary {
     /// Every adapter of this engine that finished installing, the engine's
     /// view folded in: slots it found are remembered, a complaint is shown.
     pub fn installed(&self, views: Option<&BTreeMap<String, EngineView>>) -> Vec<Installed> {
-        let Ok(entries) = fs::read_dir(&self.root) else { return Vec::new() };
+        let Ok(entries) = fs::read_dir(&self.root()) else { return Vec::new() };
         let mut out = Vec::new();
         for entry in entries.flatten() {
             let Some(id) = entry.file_name().to_str().map(str::to_owned) else { continue };
@@ -558,7 +561,7 @@ impl AdapterLibrary {
         };
         let weights: Vec<&PathBuf> = files.iter().filter(|file| file.file_name().is_some_and(|name| name != "lora.json")).collect();
         if weights.is_empty() { return None; }
-        let entries = fs::read_dir(&self.root).ok()?;
+        let entries = fs::read_dir(&self.root()).ok()?;
         entries.flatten().find_map(|entry| {
             let id = entry.file_name().to_str()?.to_owned();
             let meta = self.read_meta(&id).filter(|meta| meta.engine == self.engine)?;
@@ -1381,7 +1384,7 @@ mod tests {
     #[test]
     fn the_trained_sentence_is_read_from_the_weights() {
         let library = library("sentence");
-        let folder = library.root.join("trained");
+        let folder = library.root().join("trained");
         fs::create_dir_all(&folder).unwrap();
         let header = br#"{"__metadata__":{"trigger":"nrmn","style_template":"upstream"}}"#;
         let mut bytes = (header.len() as u64).to_le_bytes().to_vec();

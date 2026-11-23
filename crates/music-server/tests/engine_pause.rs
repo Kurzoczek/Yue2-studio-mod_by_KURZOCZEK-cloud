@@ -1,3 +1,5 @@
+mod common;
+
 use axum::{
     Json, Router,
     routing::{get, post},
@@ -50,8 +52,9 @@ async fn active_generation_refuses_pause_while_saved_audio_remains_playable() {
     let port = socket.local_addr().unwrap().port();
     drop(socket);
     let url = format!("http://127.0.0.1:{port}");
-    let http = reqwest::Client::builder().no_proxy().build().unwrap();
+    let http = common::keyed().no_proxy().build().unwrap();
     let mut studio = Command::new(env!("CARGO_BIN_EXE_music-server"))
+        .env("YUE_LOCAL_API_KEY", common::TEST_KEY)
         .env("YUE_STUDIO_PORT", port.to_string())
         .env("YUE_ENGINE_PORT", engine_port.to_string())
         .env("YUE_STUDIO_DATA_ROOT", data.path())

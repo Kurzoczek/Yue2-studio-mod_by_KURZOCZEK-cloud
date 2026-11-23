@@ -11,7 +11,7 @@ import { seekVideoToTime } from '../services/videoFrame';
 import { lineProgress } from '../services/lrc-parser';
 import { useResponsive } from '../context/ResponsiveContext';
 import { useBridgeCommand } from '../services/mcpBridge';
-import { API_BASE, apiUrl } from '../services/apiBase';
+import { API_BASE, apiUrl, withLocalKey } from '../services/apiBase';
 import { trackCoverUrl } from '../services/playerPanels';
 import { coverLookNow, readJson } from '../services/studioQueries';
 import { DEFAULT_COVER_PATTERN, isCoverPattern, patternArt } from '../services/coverArt';
@@ -135,7 +135,7 @@ function drawImageCover(ctx: CanvasRenderingContext2D, img: CanvasImageSource, c
 function drawable(url: string): string {
   if (/^(data|blob):/.test(url)) return url;
   if (url.startsWith('/')) return apiUrl(url);
-  if (API_BASE && url.startsWith(`${API_BASE}/`)) return url;
+  if (API_BASE && url.startsWith(`${API_BASE}/`)) return withLocalKey(url);
   if (url.startsWith(`${location.origin}/`)) return url;
   return apiUrl(`/v1/proxy/image?url=${encodeURIComponent(url)}`);
 }
@@ -623,7 +623,7 @@ export const VideoGeneratorModal: React.FC<VideoGeneratorModalProps> = ({ isOpen
     // Audio Setup
     const audio = new Audio();
     audio.crossOrigin = "anonymous";
-    audio.src = song.audioUrl || '';
+    audio.src = withLocalKey(song.audioUrl || '');
     audioRef.current = audio;
 
     const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;

@@ -1,11 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BarChart3, Bell, Boxes, Bug, Cloud, Cpu, Image as ImageIcon, Info, Monitor, Plug, User as UserIcon, X } from 'lucide-react';
+import { LookSetting } from './LookSetting';
+import { TransferRates } from './TransferRates';
+import { BarChart3, Bell, Boxes, Bug, Cloud, Cpu, FolderOpen, Gauge, Image as ImageIcon, Info, Languages, MemoryStick, Monitor, Plug, Stethoscope, User as UserIcon, X } from 'lucide-react';
 import { SiGithub } from '@icons-pack/react-simple-icons';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../context/I18nContext';
 import { LANGUAGE_NAMES, type Language } from '../i18n/translations';
 import { ProviderSettings } from './ProviderSettings';
 import { EngineSettings } from './EngineSettings';
+import { DiagnosticsDumpSettings, LanguageSettings, MemorySettings, ProcessorSettings, SaveLocationSettings } from './DebianSettings';
 import { EnginesAndUpdates } from './EnginesAndUpdates';
 import { enginePageStrings } from '../i18n/enginePage';
 import { SetupGate, type SetupSelection } from './SetupGate';
@@ -36,7 +39,7 @@ import { setUiScale, storedUiScale, UI_SCALE_EVENT, UI_SCALE_MAX, UI_SCALE_MIN, 
 /// The assistant and the karaoke recogniser are not sections of their own: they
 /// are set up where they are installed, on the models page. Having both was one
 /// capability drawn twice, and the two drawings disagreed.
-const sectionIds = ['account', 'models', 'engines', 'engine', 'cloud', 'agent', 'covers', 'interface', 'privacy', 'notifications', 'about'] as const;
+const sectionIds = ['account', 'language', 'models', 'engines', 'engine', 'memory', 'processor', 'cloud', 'agent', 'covers', 'saving', 'diagnostics', 'interface', 'privacy', 'notifications', 'about'] as const;
 type SectionId = typeof sectionIds[number];
 
 export function isSettingsTarget(value: unknown): value is string {
@@ -70,6 +73,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, target, on
   const [reporting, setReporting] = useState(false);
   const [showLangInfo, setShowLangInfo] = useState(false);
   const langInfoRef = useRef<HTMLDivElement>(null);
+  // The section list follows the section shown only when that changes, never on other renders: the person may be
+  // scrolling the list.
+  const navListRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    navListRef.current?.querySelector<HTMLElement>('[aria-current="page"]')?.scrollIntoView?.({ block: 'nearest' });
+  }, [section]);
 
   useEffect(() => {
     if (!showLangInfo) return;
@@ -84,12 +93,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, target, on
 
   const sections: Array<{ id: SectionId; label: string; hint: string; icon: React.ReactNode }> = [
     { id: 'account', label: t('account'), hint: t('accountSectionHint'), icon: <UserIcon size={16} /> },
+    { id: 'language', label: t('dbLanguageSection'), hint: t('dbLanguageSectionHint'), icon: <Languages size={16} /> },
     { id: 'models', label: t('modelsSection'), hint: t('modelsSectionHint'), icon: <Boxes size={16} /> },
     { id: 'engines', label: enginePageStrings[language][0], hint: '', icon: <Cpu size={16} /> },
     { id: 'engine', label: t('localEngine'), hint: t('engineSectionHint'), icon: <Cpu size={16} /> },
+    { id: 'memory', label: t('dbMemorySection'), hint: t('dbMemorySectionHint'), icon: <MemoryStick size={16} /> },
+    { id: 'processor', label: t('dbProcessorSection'), hint: t('dbProcessorSectionHint'), icon: <Gauge size={16} /> },
     { id: 'cloud', label: t('providers'), hint: t('cloudSectionHint'), icon: <Cloud size={16} /> },
     { id: 'agent', label: t('agentSection'), hint: t('agentSectionHint'), icon: <Plug size={16} /> },
     { id: 'covers', label: t('coversSection'), hint: t('coversSectionHint'), icon: <ImageIcon size={16} /> },
+    { id: 'saving', label: t('dbSavingSection'), hint: t('dbSavingSectionHint'), icon: <FolderOpen size={16} /> },
+    { id: 'diagnostics', label: t('dbDiagnosticsSection'), hint: t('dbDiagnosticsSectionHint'), icon: <Stethoscope size={16} /> },
     { id: 'interface', label: t('appearance'), hint: t('interfaceSectionHint'), icon: <Monitor size={16} /> },
     { id: 'privacy', label: t('privacySection'), hint: t('privacySectionHint'), icon: <BarChart3 size={16} /> },
     ...(supportsWindowsSongNotifications() ? [{ id: 'notifications' as const, label: t('shellNotificationsSection'), hint: t('shellNotificationsSectionHint'), icon: <Bell size={16} /> }] : []),
@@ -120,12 +134,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, target, on
         className="flex h-[calc(var(--vh)*85)] w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-zinc-900"
         onClick={(event) => event.stopPropagation()}
       >
-        <nav className="hidden w-60 shrink-0 flex-col border-r border-zinc-200 bg-zinc-50 p-3 dark:border-white/5 dark:bg-black/20 sm:flex">
-          <h2 className="px-2 pb-3 pt-2 text-lg font-bold text-zinc-900 dark:text-white">{t('settings')}</h2>
-          <div className="space-y-1">
+        <nav className="hidden min-h-0 w-60 shrink-0 flex-col border-r border-zinc-200 bg-zinc-50 py-3 pl-3 pr-1 dark:border-white/5 dark:bg-black/20 sm:flex">
+          <h2 className="shrink-0 px-2 pb-3 pt-2 text-lg font-bold text-zinc-900 dark:text-white">{t('settings')}</h2>
+          {/* On a short window the list scrolls with its own bar, so the last sections are not cut off. */}
+          <div className="settings-nav-scroll min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1.5" data-testid="settings-nav-list" ref={navListRef}>
             {sections.map((entry) => (
               <button
                 key={entry.id}
+                aria-current={section === entry.id ? 'page' : undefined}
                 type="button"
                 onClick={() => onNavigate(entry.id)}
                 className={`flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors ${
@@ -169,6 +185,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, target, on
             ))}
           </div>
 
+          {/* where downloads happen: how fast they come in, and what the disks read and write meanwhile */}
+          {(section === 'engines' || section === 'models') && <TransferRates />}
           <div className="min-h-0 flex-1 overflow-y-auto p-6">
             {section === 'account' && (
               <div className="max-w-lg space-y-2">
@@ -187,6 +205,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, target, on
               </div>
             )}
             {section === 'engine' && <EngineSettings />}
+            {section === 'language' && <LanguageSettings />}
+            {section === 'memory' && <MemorySettings />}
+            {section === 'processor' && <ProcessorSettings />}
+            {section === 'saving' && <SaveLocationSettings />}
+            {section === 'diagnostics' && <DiagnosticsDumpSettings />}
             {section === 'engines' && <EnginesAndUpdates focus={focus} onNavigate={onNavigate} />}
             {section === 'cloud' && <ProviderSettings />}
             {section === 'agent' && <AgentPanel />}
@@ -240,6 +263,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, target, on
                     </button>
                   </div>
                 </div>
+
+                <LookSetting />
 
                 <UiScaleSetting />
 

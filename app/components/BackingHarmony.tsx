@@ -4,6 +4,7 @@ import { backingHarmony, failed, type BackingHarmonyAnalysis, type BackingSpan }
 
 const labels = {
   en: ['Analyze backing harmony', 'Use key {key}', 'Suggested chords', 'Repeated sections', 'Uncertain time ranges are omitted. Review the results against the recording.'],
+  pl: ['Przeanalizuj harmonię podkładu', 'Użyj tonacji {key}', 'Proponowane akordy', 'Powtarzające się sekcje', 'Niepewne fragmenty czasu są pomijane. Porównaj wyniki z nagraniem.'],
   ru: ['Разобрать гармонию аккомпанемента', 'Использовать тональность {key}', 'Предполагаемые аккорды', 'Повторяющиеся секции', 'Неуверенные интервалы пропущены. Сверьте результат с записью.'],
   pt: ['Analisar a harmonia do acompanhamento', 'Usar a tonalidade {key}', 'Acordes sugeridos', 'Secções repetidas', 'Os intervalos incertos foram omitidos. Confirme o resultado com a gravação.'],
   zh: ['分析伴奏和声', '使用调性 {key}', '建议和弦', '重复段落', '已省略不确定的时间段。请对照录音确认结果。'],

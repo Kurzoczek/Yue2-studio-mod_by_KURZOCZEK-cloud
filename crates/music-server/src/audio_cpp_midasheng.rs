@@ -25,7 +25,7 @@ pub(super) struct MiDashengPrompt {
 }
 
 pub(super) fn model_dir(root: &Path) -> PathBuf {
-    root.join(DIRECTORY)
+    crate::model_storage::under(root, DIRECTORY)
 }
 
 pub(super) fn missing_files(path: &Path) -> Vec<&'static str> {

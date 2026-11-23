@@ -280,7 +280,7 @@ pub(crate) fn installed_worker(
 
 fn present(downloader: &Downloader, asset: &Asset) -> bool {
     let record = downloader.record_of(asset);
-    install_record::matches(&record, asset.url, downloader.root()) == Some(true)
+    install_record::matches(&record, asset.url, &downloader.root()) == Some(true)
         && install_record::read(&record)
             .is_some_and(|record| Some(record.sha256.as_str()) == sha256(asset.url))
 }
@@ -454,7 +454,7 @@ mod tests {
             HUBERT.url,
             "obsolete",
             std::slice::from_ref(&path),
-            downloader.root(),
+            &downloader.root(),
         )
         .unwrap();
         assert!(!present(&downloader, &HUBERT));
@@ -463,7 +463,7 @@ mod tests {
             HUBERT.url,
             sha256(HUBERT.url).unwrap(),
             std::slice::from_ref(&path),
-            downloader.root(),
+            &downloader.root(),
         )
         .unwrap();
         assert!(present(&downloader, &HUBERT));

@@ -4,6 +4,7 @@ import { backingTempo, failed } from '../services/scoreApi';
 
 const labels = {
   en: ['Measure backing tempo', 'Use {bpm} BPM', 'Check the estimate against the recording. Use a matching score for harmony and sections.'],
+  pl: ['Zmierz tempo podkładu', 'Użyj {bpm} BPM', 'Porównaj oszacowanie z nagraniem. Dla harmonii i sekcji użyj pasujących nut.'],
   ru: ['Измерить темп аккомпанемента', 'Использовать {bpm} BPM', 'Сверьте оценку с записью. Гармонию и секции задаёт подходящая партитура.'],
   pt: ['Medir o tempo do acompanhamento', 'Usar {bpm} BPM', 'Confirme a estimativa com a gravação. Use uma partitura correspondente para a harmonia e as secções.'],
   zh: ['测量伴奏速度', '使用 {bpm} BPM', '请对照录音确认速度。用相匹配的乐谱指定和声及段落。'],

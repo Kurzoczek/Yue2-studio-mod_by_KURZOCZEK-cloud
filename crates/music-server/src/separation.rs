@@ -167,7 +167,7 @@ pub struct Separator {
 
 impl Separator {
     pub fn new(data_root: &Path) -> Self {
-        Self { downloader: Downloader::new(data_root.join("separation")) }
+        Self { downloader: Downloader::in_folder(data_root, "separation") }
     }
 
     pub fn downloader(&self) -> &Downloader {

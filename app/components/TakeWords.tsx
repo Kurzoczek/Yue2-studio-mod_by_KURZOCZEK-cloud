@@ -6,6 +6,7 @@ import type { Song } from '../types';
 
 const copy = {
   en: ['Compare sung words', 'Uses the karaoke recogniser for both recordings. A cloud recogniser sends both recordings to the provider. The reference is the lyrics of take A.', 'Recognising take', 'Word match', 'No score', 'Mark take {side} as preferred'],
+  pl: ['Porównaj zaśpiewane słowa', 'Używa programu do rozpoznawania z karaoke dla obu nagrań. Rozpoznawanie w chmurze wysyła oba nagrania do dostawcy. Wzorcem jest tekst nagrania A.', 'Rozpoznaję nagranie', 'Zgodność słów', 'Brak wyniku', 'Oznacz nagranie {side} jako wybrane'],
   ru: ['Сравнить спетые слова', 'Оба дубля обработает распознаватель караоке. При выборе облачного сервиса он получит обе записи. Образец для сравнения — текст дубля A.', 'Распознаётся дубль', 'Совпадение с текстом', 'Нет оценки', 'Сделать дубль {side} предпочтительным'],
   zh: ['比较演唱的歌词', '使用卡拉 OK 识别器处理两个版本。云端识别器会将两份录音发送给服务商。参照文本为 A 的歌词。', '正在识别', '歌词匹配度', '无评分', '将版本 {side} 设为首选'],
   ja: ['歌詞の一致度を比較', 'カラオケの認識器で両方の音源を処理します。クラウド設定時は両方の録音が送信されます。基準はテイク A の歌詞です。', '認識中のテイク', '歌詞の一致度', '評価なし', 'テイク {side} を優先にする'],

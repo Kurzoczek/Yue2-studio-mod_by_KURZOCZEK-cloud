@@ -13,6 +13,7 @@ import { Pause, Play, Radio } from 'lucide-react';
 import { pageZoom } from '../../services/uiScale';
 import { useI18n } from '../../context/I18nContext';
 import { MidiSynth, type PlayNote } from './midiSynth';
+import { withLocalKey } from '../../services/apiBase';
 
 /** A note as the studio's service reports it, in seconds. */
 export interface HeardNote {
@@ -238,7 +239,7 @@ export const MidiPlayer: React.FC<Props> = ({ notes, sourceAudioUrl, live, chunk
 
   return (
     <div className="mt-3">
-      {sourceAudioUrl && <audio ref={audioRef} src={sourceAudioUrl} preload="metadata" />}
+      {sourceAudioUrl && <audio ref={audioRef} src={withLocalKey(sourceAudioUrl)} preload="metadata" />}
 
       {/* transport */}
       <div className="flex items-center gap-3 flex-wrap mb-2">

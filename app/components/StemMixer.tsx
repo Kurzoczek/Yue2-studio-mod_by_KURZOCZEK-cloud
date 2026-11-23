@@ -3,6 +3,7 @@ import { Download, Pause, Play, Repeat } from 'lucide-react';
 import { AudioWaveform } from './AudioWaveform';
 import { useI18n } from '../context/I18nContext';
 import { keepContextRunning } from '../services/audioGraph';
+import { withLocalKey } from '../services/apiBase';
 import { clampLoop, clampPan, drifted, freshChannel, heardGain, loopJump, panLabel, volumeDb, type LoopRegion, type StemChannel } from '../services/stemMix';
 
 /**
@@ -152,7 +153,7 @@ export const StemMixer: React.FC<Props> = ({ stems, urlFor, mixUrl, label, onDow
       await Promise.all(tracks.map(async ([stem, element]) => {
         try {
           if (element.error) {
-            const source = new URL(urlFor(stem), document.baseURI);
+            const source = new URL(withLocalKey(urlFor(stem)), document.baseURI);
             source.searchParams.set('retry', String(id));
             element.src = source.href;
             element.load();
@@ -258,7 +259,7 @@ export const StemMixer: React.FC<Props> = ({ stems, urlFor, mixUrl, label, onDow
             </button>
             <audio
               ref={element => { if (element) elements.current.set(stem, element); else elements.current.delete(stem); }}
-              src={urlFor(stem)}
+              src={withLocalKey(urlFor(stem))}
               // the desktop window is on another origin than the service: without CORS, Web Audio hears silence
               crossOrigin="anonymous"
               preload="auto"

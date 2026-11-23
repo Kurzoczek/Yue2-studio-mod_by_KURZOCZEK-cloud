@@ -16,6 +16,22 @@ use serde::Serialize;
 pub const OPENROUTER_ENV_VAR: &str = "OPENROUTER_API_KEY";
 const OPENROUTER_FILE: &str = "openrouter-api-key";
 
+/// Writes a key readable by its owner only (0600 on Unix), so other accounts on the computer cannot read it.
+fn write_secret(path: &std::path::Path, key: &str) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+        let mut file = fs::OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(path)?;
+        file.set_permissions(fs::Permissions::from_mode(0o600))?;
+        file.write_all(key.as_bytes())
+    }
+    #[cfg(not(unix))]
+    {
+        fs::write(path, key)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CredentialSource {
@@ -50,7 +66,7 @@ pub fn store_openrouter_api_key(api_key: Option<&str>) -> Result<Option<Credenti
             if let Some(parent) = path.parent() {
                 fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
             }
-            fs::write(&path, key).with_context(|| format!("write {}", path.display()))?;
+            write_secret(&path, key).with_context(|| format!("write {}", path.display()))?;
             Ok(Some(CredentialSource::LocalStore))
         }
         None => {
@@ -83,7 +99,7 @@ pub fn store_local_server_key(api_key: Option<&str>) -> Result<bool> {
             if let Some(parent) = path.parent() {
                 fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
             }
-            fs::write(&path, key).with_context(|| format!("write {}", path.display()))?;
+            write_secret(&path, key).with_context(|| format!("write {}", path.display()))?;
             Ok(true)
         }
         None => {

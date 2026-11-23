@@ -60,7 +60,11 @@ pub async fn choose(Json(request): Json<Destination>) -> Result<Json<Value>, (St
     if name.is_empty() {
         return Err(api_error(StatusCode::BAD_REQUEST, "a file name is needed".into()));
     }
-    let start = saving().lock().expect("saving").last_folder.clone();
+    // Settings -> Save locations: the folder chosen for this kind of file, else where the last file of this kind went
+    // (kept across restarts), else where the last file went
+    let start = crate::save_locations::start_folder(&name)
+        .or_else(|| crate::save_locations::last_folder_for(&name))
+        .or_else(|| saving().lock().expect("saving").last_folder.clone());
     let asked = name.clone();
     let chosen = tokio::task::spawn_blocking(move || DIALOG.get().map(|dialog| dialog(&asked, start)))
         .await
@@ -72,6 +76,9 @@ pub async fn choose(Json(request): Json<Destination>) -> Result<Json<Value>, (St
         return Ok(Json(json!({ "cancelled": true })));
     };
     let id = uuid::Uuid::now_v7().to_string();
+    if let Some(folder) = path.parent() {
+        crate::save_locations::remember_last_folder(&name, folder);
+    }
     let mut state = saving().lock().expect("saving");
     state.last_folder = path.parent().map(PathBuf::from);
     state.chosen.insert(id.clone(), path.clone());
@@ -129,8 +136,12 @@ pub async fn write(Path(id): Path<String>, headers: HeaderMap, body: Body) -> Re
         let Some(own) = own_path(&served.url) else {
             return Err(api_error(StatusCode::BAD_REQUEST, format!("{} is not a file of this studio", served.url)));
         };
+        // The service reads its own file over loopback, so the request must carry the local API key like any other
+        // request from this computer: the guard turned it away with 401 before, and the key the window added to the
+        // address had already been scrubbed out of this body (Debian hardening).
         let response = crate::net::client()
             .get(format!("http://127.0.0.1:{}{own}", crate::listen_port()))
+            .bearer_auth(crate::remote::local_key())
             .send()
             .await
             .and_then(|response| response.error_for_status());

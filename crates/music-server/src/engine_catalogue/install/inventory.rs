@@ -5,7 +5,7 @@ async fn inspect<P: Package>(
     id: &str,
     describe: &impl Fn(P) -> (String, String),
 ) -> Result<Option<serde_json::Value>> {
-    let dir = root.join(P::FOLDER).join(id);
+    let dir = crate::model_storage::folder(root, P::FOLDER).join(id);
     let selected = read_selection(&dir)?;
     if selected.active.is_empty() {
         return Ok(None);
@@ -25,7 +25,7 @@ async fn collect<P: Package>(
     errors: &mut Vec<serde_json::Value>,
     describe: impl Fn(P) -> (String, String),
 ) -> Result<()> {
-    let mut entries = match tokio::fs::read_dir(root.join(P::FOLDER)).await {
+    let mut entries = match tokio::fs::read_dir(crate::model_storage::folder(root, P::FOLDER)).await {
         Ok(entries) => entries,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
         Err(error) => return Err(error.into()),

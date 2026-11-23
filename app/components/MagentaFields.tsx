@@ -15,6 +15,7 @@ export function restoreMagentaOptions(saved: unknown): MagentaOptions {
 
 const labels = {
   en: ['Style reference', 'Use text style', 'Reference unavailable', 'Use the selected track as the musical style.'],
+  pl: ['Wzorzec stylu', 'Użyj stylu z tekstu', 'Wzorzec niedostępny', 'Użyj wybranego utworu jako stylu muzycznego.'],
   ru: ['Звуковой референс стиля', 'Использовать описание стиля', 'Референс недоступен', 'Использовать стиль выбранного трека.'],
   zh: ['风格参考', '使用文字描述风格', '参考音频不可用', '将所选曲目用作风格参考。'],
   ja: ['スタイル参照音源', 'テキストでスタイルを指定', '参照音源を利用できません', '選んだ曲のスタイルを使います。'],

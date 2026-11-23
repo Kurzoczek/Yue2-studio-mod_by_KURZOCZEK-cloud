@@ -6,11 +6,13 @@ export const songTokenStrings = {
   zh: { tokens: '词元', tokenLoading: '正在读取模型词元…' },
   ja: { tokens: 'トークン', tokenLoading: 'モデルのトークナイザーを読み込み中…' },
   ko: { tokens: '토큰', tokenLoading: '모델 토크나이저를 읽는 중…' },
+  pl: { tokens: 'tokenów', tokenLoading: 'Wczytuję tokenizer modelu…' },
   pt: ptSongTokenStrings,
 };
 const en = { parts: 'Edit style parts', sections: 'Edit sections', add: 'Add', duplicate: 'Duplicate', remove: 'Delete', up: 'Move up', down: 'Move down', tag: 'Section tag', words: 'Words', language: 'Vocal language', auto: 'Automatic', lines: 'Sung lines', instructions: 'Additional instructions', descriptor: 'Style descriptor' };
 export const songWritingStrings: Record<Language, typeof en> = {
   en,
+  pl: { parts: 'Styl po częściach', sections: 'Edytuj sekcje', add: 'Dodaj', duplicate: 'Powiel', remove: 'Usuń', up: 'Wyżej', down: 'Niżej', tag: 'Znacznik sekcji', words: 'Słowa', language: 'Język wokalu', auto: 'Automatycznie', lines: 'Śpiewane linijki', instructions: 'Dodatkowe wskazówki', descriptor: 'Opis brzmienia' },
   ru: { parts: 'Стиль по частям', sections: 'Редактор секций', add: 'Добавить', duplicate: 'Дублировать', remove: 'Удалить', up: 'Выше', down: 'Ниже', tag: 'Название секции', words: 'Слова', language: 'Язык вокала', auto: 'Автоматически', lines: 'Строки вокала', instructions: 'Дополнительные указания', descriptor: 'Описание звучания' },
   zh: { parts: '编辑风格元素', sections: '编辑段落', add: '添加', duplicate: '复制', remove: '删除', up: '上移', down: '下移', tag: '段落标签', words: '歌词', language: '演唱语言', auto: '自动', lines: '演唱行数', instructions: '附加说明', descriptor: '风格描述' },
   ja: { parts: 'スタイル要素を編集', sections: 'セクションを編集', add: '追加', duplicate: '複製', remove: '削除', up: '上へ', down: '下へ', tag: 'セクション名', words: '歌詞', language: '歌唱言語', auto: '自動', lines: '歌詞の行数', instructions: '追加の指示', descriptor: '音楽スタイル' },
@@ -23,6 +25,7 @@ export const songDetailStrings = {
   zh: { tempo: '速度', voice: '人声', preset: '段落类型', cycle: '下一个段落类型', lineEditor: '编辑歌词行和字母大小写', addLine: '添加行', duplicateStanza: '复制诗节', deleteStanza: '删除诗节', flipCase: '切换字母大小写', sound: '音色 / 风格', caseHint: '点击字母切换大小写。模型接收修改后的文字。' },
   ja: { tempo: 'テンポ', voice: '歌声', preset: 'セクションの種類', cycle: '次のセクション名', lineEditor: '行と文字の大小を編集', addLine: '行を追加', duplicateStanza: '詩節を複製', deleteStanza: '詩節を削除', flipCase: '大文字・小文字を切替', sound: 'サウンド / ジャンル', caseHint: '文字をクリックして大文字・小文字を切り替えます。変更後の文字がモデルに送られます。' },
   ko: { tempo: '템포', voice: '목소리', preset: '섹션 유형', cycle: '다음 섹션 유형', lineEditor: '줄과 대소문자 편집', addLine: '줄 추가', duplicateStanza: '연 복제', deleteStanza: '연 삭제', flipCase: '대소문자 전환', sound: '사운드 / 장르', caseHint: '글자를 클릭해 대소문자를 바꿉니다. 수정된 글자가 모델에 전달됩니다.' },
+  pl: { tempo: 'Tempo', voice: 'Głosy', preset: 'Rodzaj sekcji', cycle: 'Następny znacznik sekcji', lineEditor: 'Edytuj linijki i wielkość liter', addLine: 'Dodaj linijkę', duplicateStanza: 'Powiel zwrotkę', deleteStanza: 'Usuń zwrotkę', flipCase: 'Zmień wielkość litery', sound: 'Brzmienie / gatunek', caseHint: 'Kliknij literę, żeby zmienić jej wielkość. Model dostaje zmienione litery.' },
   pt: ptSongDetailStrings,
 };
 /** One line under each field of the style's parts: what it sets, what Automatic leaves to the model, what to type. */
@@ -56,6 +59,12 @@ export const songPartHints = {
     tempoHint: '분당 박자 수로, 스타일에 적힙니다. 자동: 모델이 장르에 맞는 템포를 고릅니다. 정해진 빠르기가 필요할 때 설정하세요.',
     voiceHint: '누가 부르는지 영어로: "sweet female vocal"(달콤한 여성 보컬), "raspy male voice"(거친 남성 목소리). 자동: 모델이 장르에서 목소리를 정합니다.',
     soundHint: '스타일 요소 하나 더: 장르, 분위기, 악기를 모델이 아는 영어로("lo-fi", "warm piano").',
+  },
+  pl: {
+    languageHint: 'Język, w którym śpiewany jest tekst. Automatycznie: model rozpozna go z tekstu piosenki.',
+    tempoHint: 'Uderzenia na minutę, wpisywane do stylu. Automatycznie: model dobiera tempo do gatunku; ustaw je, gdy utwór potrzebuje określonej szybkości.',
+    voiceHint: 'Kto śpiewa, angielskimi słowami: "sweet female vocal", "raspy male voice". Automatycznie: model bierze głos z gatunku.',
+    soundHint: 'Jeszcze jedna część stylu: gatunek, nastrój albo instrument, angielskimi słowami, które model zna ("lo-fi", "warm piano").',
   },
   pt: ptSongPartHints,
 };

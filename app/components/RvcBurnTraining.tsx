@@ -6,6 +6,7 @@ import { rvcApplyStrings } from '../i18n/rvcApply';
 
 const copy: Record<string, [string, string, string, string, string, string]> = {
   en: ['Add an isolated voice recording to the dataset.', 'RVC Burn requires an NVIDIA CUDA card.', 'RVC Burn components', 'Install voice', 'Voice in catalogue', 'Batch size'],
+  pl: ['Dodaj do zbioru danych wyizolowane nagranie głosu.', 'RVC Burn wymaga karty NVIDIA z CUDA.', 'Komponenty RVC Burn', 'Zainstaluj głos', 'Głos w katalogu', 'Wielkość paczki'],
   ru: ['Добавьте в датасет запись изолированного голоса.', 'Для RVC Burn нужна видеокарта NVIDIA с CUDA.', 'Компоненты RVC Burn', 'Установить голос', 'Голос в каталоге', 'Размер пакета'],
   zh: ['向数据集添加单独的人声录音。', 'RVC Burn 需要支持 CUDA 的 NVIDIA 显卡。', 'RVC Burn 组件', '安装声音', '声音已在目录中', '批量大小'],
   ja: ['データセットに単独の音声録音を追加してください。', 'RVC Burn には NVIDIA CUDA GPU が必要です。', 'RVC Burn コンポーネント', '音声をインストール', '音声カタログに追加済み', 'バッチサイズ'],

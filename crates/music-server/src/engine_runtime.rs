@@ -622,7 +622,7 @@ mod tests {
         for library in &unpacked {
             std::fs::write(library, b"x").unwrap();
         }
-        crate::install_record::write(&runtime.downloader().record_of(asset), asset.url, "", &unpacked, runtime.downloader().root()).unwrap();
+        crate::install_record::write(&runtime.downloader().record_of(asset), asset.url, "", &unpacked, &runtime.downloader().root()).unwrap();
         assert!(runtime.downloader().is_installed(asset));
         assert!(!runtime.missing(Some(CudaBuild::Cuda13)).iter().any(|missing| missing.id == asset.id));
         std::fs::remove_dir_all(&data).ok();

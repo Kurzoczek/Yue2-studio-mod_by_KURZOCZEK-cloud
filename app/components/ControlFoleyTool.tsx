@@ -8,6 +8,7 @@ import { musicSourceStrings, nativeMusicSourceStrings } from '../i18n/musicSourc
 
 const strings = {
   en: { heading: 'Sound from video', source: 'Original video', prompt: 'Sound description (optional)', limit: 'Seconds from the start of the video', create: 'Generate sound', error: 'Could not import the video.', ffmpeg: 'Install FFmpeg and make it available on the Studio computer’s PATH.' },
+  pl: { heading: 'Dźwięk z filmu', source: 'Oryginalny film', prompt: 'Opis dźwięku (opcjonalnie)', limit: 'Sekundy od początku filmu', create: 'Wygeneruj dźwięk', error: 'Nie udało się zaimportować filmu.', ffmpeg: 'Zainstaluj FFmpeg i dodaj go do PATH komputera ze studiem.' },
   ru: { heading: 'Звук для видео', source: 'Исходное видео', prompt: 'Описание звука (необязательно)', limit: 'Секунды от начала видео', create: 'Создать звук', error: 'Не удалось импортировать видео.', ffmpeg: 'Установите FFmpeg и добавьте его в PATH на компьютере со Studio.' },
   zh: { heading: '为视频配音效', source: '源视频', prompt: '声音描述（可选）', limit: '从视频起始处截取的秒数', create: '生成音频', error: '无法导入视频。', ffmpeg: '请安装 FFmpeg 并将其加入 Studio 所在电脑的 PATH。' },
   ja: { heading: '動画の効果音', source: '元の動画', prompt: '音の説明（任意）', limit: '動画の先頭からの秒数', create: '音声を生成', error: '動画をインポートできませんでした。', ffmpeg: 'Studio が動くコンピューターで FFmpeg をインストールし、PATH に追加してください。' },

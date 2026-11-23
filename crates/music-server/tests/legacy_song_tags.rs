@@ -1,3 +1,5 @@
+mod common;
+
 use lofty::{
     prelude::{Accessor, TaggedFileExt},
     probe::Probe,
@@ -19,13 +21,14 @@ async fn a_migrated_song_keeps_its_performer_when_renamed_and_downloaded() -> an
     let port = socket.local_addr()?.port();
     drop(socket);
     let mut server = Command::new(env!("CARGO_BIN_EXE_music-server"))
+        .env("YUE_LOCAL_API_KEY", common::TEST_KEY)
         .env("YUE_STUDIO_PORT", port.to_string())
         .env("YUE_STUDIO_DATA_ROOT", &data)
         .env("YUE_ENGINE_BIN", temp.path().join("absent-engine"))
         .env("TIMONCOOL_SHARED_DIR", temp.path().join("registry"))
         .kill_on_drop(true)
         .spawn()?;
-    let http = reqwest::Client::builder().no_proxy().build()?;
+    let http = common::keyed().no_proxy().build()?;
     timeout(Duration::from_secs(30), async {
         loop {
             if http

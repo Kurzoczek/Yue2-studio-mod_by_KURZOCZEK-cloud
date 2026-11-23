@@ -22,6 +22,7 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (stored && stored in LANGUAGE_NAMES) return stored;
     if (typeof navigator !== 'undefined' && navigator.language?.startsWith('ru')) return 'ru';
     if (typeof navigator !== 'undefined' && navigator.language?.startsWith('pt')) return 'pt';
+    if (typeof navigator !== 'undefined' && navigator.language?.startsWith('pl')) return 'pl';
     return 'en';
   });
 

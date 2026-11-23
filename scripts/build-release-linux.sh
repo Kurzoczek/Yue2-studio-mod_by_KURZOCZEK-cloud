@@ -68,12 +68,16 @@ npm --prefix desktop ci --no-audit --no-fund
 cd desktop
 # the display driver's libcuda and the CUDA libraries the studio downloads are never packed
 export LINUXDEPLOY_EXCLUDED_LIBRARIES="libcuda.so*;libcudart.so*;libcublas.so*;libcublasLt.so*"
-npm exec tauri build -- --config src-tauri/tauri.linux-release.conf.json --bundles deb,appimage
+npm exec tauri build -- --config src-tauri/tauri.linux-release.conf.json --bundles "${BUNDLES:-deb,appimage}"
 
 bundle="$(node "$root/scripts/release-target-dir.mjs")/bundle"
 product="$(node -p "require('./src-tauri/tauri.conf.json').productName")"
 version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
-for package in "$bundle/deb/${product}_${version}_amd64.deb" "$bundle/appimage/${product}_${version}_amd64.AppImage"; do
+packages=()
+# Debian: BUNDLES=deb builds the .deb alone
+[[ ",${BUNDLES:-deb,appimage}," == *,deb,* ]] && packages+=("$bundle/deb/${product}_${version}_amd64.deb")
+[[ ",${BUNDLES:-deb,appimage}," == *,appimage,* ]] && packages+=("$bundle/appimage/${product}_${version}_amd64.AppImage")
+for package in "${packages[@]}"; do
     test -s "$package" || { echo "Missing package: $package" >&2; exit 1; }
     printf '%s\n' "$package"
 done

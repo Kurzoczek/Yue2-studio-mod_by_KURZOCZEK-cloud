@@ -10,7 +10,7 @@ const MODEL_URL: &str = "https://huggingface.co/audio-cpp/audio.cpp-gguf/blob/32
 const PROFILE: &str = "v1_svc";
 
 fn model(state: &AppState) -> PathBuf {
-    update_data_root(state).join(DIRECTORY).join(FILE)
+    crate::model_storage::under(update_data_root(state), DIRECTORY).join(FILE)
 }
 
 fn ready(model: &FsPath) -> bool {

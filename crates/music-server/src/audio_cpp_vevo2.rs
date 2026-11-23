@@ -92,7 +92,7 @@ pub(super) struct Options {
 }
 
 pub(super) fn model_dir(root: &Path) -> PathBuf {
-    configured_directory(root).unwrap_or_else(|| root.join(DEFAULT_FOLDER))
+    configured_directory(root).unwrap_or_else(|| crate::model_storage::under(root, DEFAULT_FOLDER))
 }
 
 fn pinned_prefix(mut reader: impl std::io::Read) -> bool {

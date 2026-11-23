@@ -2712,8 +2712,8 @@ fn tools() -> &'static [Tool] {
             },
             Tool {
                 name: "storage_set",
-                description: "Move the studio's downloads to another disk, or back. directory: a folder (full path) - the studio makes its own folder inside it, moves each download folder there and leaves a link where it was, so nothing else changes; null brings them back into the studio's data folder. The library, datasets and training runs never move. The engine and the writing assistant stop for the move and the engine starts again after it; refused while a song, a download or any other work is running. On the same disk it is instant; to another disk the files are copied and checked first. storage_get tells how far it is; a folder that could not move says why and stays where it was.",
-                schema: || object(json!({ "directory": { "type": ["string", "null"] } }), &["directory"]),
+                description: "Move the studio's downloads to another disk, or back. directory: a folder (full path) - the studio makes its own folder inside it, moves each download folder there and from then on reads and writes it there (no link is left behind; where each folder is kept is written down in storage-folders.json in the data folder); a folder with nothing in it yet just gets its place, so later downloads go there; null brings them back into the studio's data folder. The library, datasets and training runs never move. The engine and the writing assistant stop for the move and the engine starts again after it; refused while a song, a download or any other work is running. On the same disk it is instant; to another disk the files are copied and checked first. storage_get tells how far it is; a folder that could not move says why and stays where it was. folders (optional): only these download folders move, e.g. [\"music-engines\"] or [\"music-models\"], each to its own place; left out, all of them move. A folder of engines needs a disk that lets programs run.",
+                schema: || object(json!({ "directory": { "type": ["string", "null"] }, "folders": { "type": "array", "items": { "type": "string", "enum": crate::model_storage::FOLDERS } } }), &["directory"]),
                 call: |args| send(Method::PUT, "/v1/storage".into(), args.clone()),
             },
             Tool {
@@ -4047,7 +4047,18 @@ async fn export_equalizer(args: &Value) -> Result<String, String> {
     if let Some(parent) = path.parent().filter(|parent| !parent.as_os_str().is_empty()) {
         std::fs::create_dir_all(parent).map_err(|error| format!("create {}: {error}", parent.display()))?;
     }
-    std::fs::write(&path, bytes).map_err(|error| format!("write {}: {error}", path.display()))?;
+    {
+        use std::io::Write;
+        // like every other export of the studio: never replace a file that is there
+        let mut file = std::fs::OpenOptions::new().write(true).create_new(true).open(&path).map_err(|error| {
+            if error.kind() == std::io::ErrorKind::AlreadyExists {
+                format!("{} already exists; the studio does not replace files, name another", path.display())
+            } else {
+                format!("write {}: {error}", path.display())
+            }
+        })?;
+        file.write_all(&bytes).map_err(|error| format!("write {}: {error}", path.display()))?;
+    }
     Ok(format!("Saved the preset {} to {}.", exported["name"].as_str().unwrap_or_default(), path.display()))
 }
 
@@ -4458,6 +4469,20 @@ mod tests {
 
     /// Routes an agent is not given, and why.
     const NOT_TOOLS: &[(&str, &str, &str)] = &[
+        // Debian: Settings -> Memory / Processor / Diagnostics / Save locations are the person's own machine limits,
+        // not something an agent should change behind their back
+        ("GET", "/v1/governor", "Debian settings page: the person's RAM, CPU and overheating limits for the engine"),
+        ("PUT", "/v1/governor", "Debian settings page: limits on the person's machine are changed by the person only"),
+        ("GET", "/v1/state-dumps", "Debian settings page: diagnostics settings and the dumps on disk"),
+        ("PUT", "/v1/state-dumps", "Debian settings page: diagnostics settings are changed by the person only"),
+        ("POST", "/v1/state-dumps/now", "Debian settings page: a state dump the person asks for with the button"),
+        ("GET", "/v1/save-locations", "Debian settings page: the folders chosen for every kind of file"),
+        ("PUT", "/v1/save-locations", "Debian settings page: where files go is chosen by the person only"),
+        ("POST", "/v1/save-locations/pick", "Debian settings page: the folder dialog the person opens with Browse"),
+        ("GET", "/v1/transfer-rates", "Debian settings page: download speed and disk reads and writes, polled each second"),
+        ("GET", "/v1/data-folder", "Debian settings page: where the data folder is and a move waiting for the next start"),
+        ("PUT", "/v1/data-folder", "Debian settings page: the person plans a move of the whole data folder for the next start"),
+        ("POST", "/v1/data-folder/pick", "Debian settings page: the folder dialog for the data folder"),
         ("GET", "/v1/rvc/preview/{id}/{side}", "binary audio from the before_url and after_url answered by rvc_preview"),
         ("GET", "/v1/rvc/catalog/sample/{id}", "binary verified demo audio addressed by sample_audio_url in rvc_catalog_list"),
         ("GET", "/health", "the service's identity for the desktop shell: initialize names the server and its version"),

@@ -16,29 +16,34 @@ import { shellStrings } from './shell';
 import { exportStrings } from './exportDialog';
 import { stemMixerStrings } from './stemMixer';
 import { modelStorageStrings } from './modelStorage';
+import { debianStrings } from './debian';
+import { pl } from './pl';
 
-export type Language = 'en' | 'zh' | 'ja' | 'ko' | 'ru' | 'pt';
+export type Language = 'en' | 'pl' | 'zh' | 'ja' | 'ko' | 'ru' | 'pt';
 
 /** Each window language by its own name, the same in every language, so a reader finds theirs in any window. */
 export const LANGUAGE_NAMES: Record<Language, string> = {
   ru: 'Русский',
   en: 'English',
+  pl: 'Polski',
   zh: '简体中文',
   ja: '日本語',
   ko: '한국어',
   pt: 'Português',
 };
 
-const enAll = { ...en, ...yue2.en, ...adapterStrings.en, ...processingStrings.en, ...trainingStrings.en, ...hubStrings.en, ...scoreStrings.en, ...midiEditorStrings.en, ...noticeStrings.en, ...shellStrings.en, ...exportStrings.en, ...stemMixerStrings.en, ...modelStorageStrings.en };
+const enAll = { ...en, ...yue2.en, ...adapterStrings.en, ...processingStrings.en, ...trainingStrings.en, ...hubStrings.en, ...scoreStrings.en, ...midiEditorStrings.en, ...noticeStrings.en, ...shellStrings.en, ...exportStrings.en, ...stemMixerStrings.en, ...modelStorageStrings.en, ...debianStrings.en };
 
 export type TranslationKey = keyof typeof enAll;
 
 export const translations: Record<Language, Partial<Record<TranslationKey, string>>> = {
   en: enAll,
-  zh: { ...zh, ...yue2.zh, ...adapterStrings.zh, ...processingStrings.zh, ...trainingStrings.zh, ...hubStrings.zh, ...scoreStrings.zh, ...midiEditorStrings.zh, ...noticeStrings.zh, ...shellStrings.zh, ...exportStrings.zh, ...stemMixerStrings.zh, ...modelStorageStrings.zh },
-  ja: { ...ja, ...yue2.ja, ...adapterStrings.ja, ...processingStrings.ja, ...trainingStrings.ja, ...hubStrings.ja, ...scoreStrings.ja, ...midiEditorStrings.ja, ...noticeStrings.ja, ...shellStrings.ja, ...exportStrings.ja, ...stemMixerStrings.ja, ...modelStorageStrings.ja },
-  ko: { ...ko, ...yue2.ko, ...adapterStrings.ko, ...processingStrings.ko, ...trainingStrings.ko, ...hubStrings.ko, ...scoreStrings.ko, ...midiEditorStrings.ko, ...noticeStrings.ko, ...shellStrings.ko, ...exportStrings.ko, ...stemMixerStrings.ko, ...modelStorageStrings.ko },
-  ru: { ...ru, ...yue2.ru, ...adapterStrings.ru, ...processingStrings.ru, ...trainingStrings.ru, ...hubStrings.ru, ...scoreStrings.ru, ...midiEditorStrings.ru, ...noticeStrings.ru, ...shellStrings.ru, ...exportStrings.ru, ...stemMixerStrings.ru, ...modelStorageStrings.ru },
+  // Polish (Debian build): every text in Polish; one without a translation yet shows in English
+  pl: { ...enAll, ...pl, ...debianStrings.pl },
+  zh: { ...zh, ...yue2.zh, ...adapterStrings.zh, ...processingStrings.zh, ...trainingStrings.zh, ...hubStrings.zh, ...scoreStrings.zh, ...midiEditorStrings.zh, ...noticeStrings.zh, ...shellStrings.zh, ...exportStrings.zh, ...stemMixerStrings.zh, ...modelStorageStrings.zh, ...debianStrings.en },
+  ja: { ...ja, ...yue2.ja, ...adapterStrings.ja, ...processingStrings.ja, ...trainingStrings.ja, ...hubStrings.ja, ...scoreStrings.ja, ...midiEditorStrings.ja, ...noticeStrings.ja, ...shellStrings.ja, ...exportStrings.ja, ...stemMixerStrings.ja, ...modelStorageStrings.ja, ...debianStrings.en },
+  ko: { ...ko, ...yue2.ko, ...adapterStrings.ko, ...processingStrings.ko, ...trainingStrings.ko, ...hubStrings.ko, ...scoreStrings.ko, ...midiEditorStrings.ko, ...noticeStrings.ko, ...shellStrings.ko, ...exportStrings.ko, ...stemMixerStrings.ko, ...modelStorageStrings.ko, ...debianStrings.en },
+  ru: { ...ru, ...yue2.ru, ...adapterStrings.ru, ...processingStrings.ru, ...trainingStrings.ru, ...hubStrings.ru, ...scoreStrings.ru, ...midiEditorStrings.ru, ...noticeStrings.ru, ...shellStrings.ru, ...exportStrings.ru, ...stemMixerStrings.ru, ...modelStorageStrings.ru, ...debianStrings.en },
   // one file for the whole language: what it lacks is read in English, never as a bare key
   pt: { ...enAll, ...pt, ...exportStrings.pt, ...stemMixerStrings.pt, ...modelStorageStrings.pt },
 };

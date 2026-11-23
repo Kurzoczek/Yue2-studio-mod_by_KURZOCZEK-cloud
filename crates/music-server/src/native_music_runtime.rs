@@ -90,12 +90,12 @@ pub(super) fn sha256(url: &str) -> Option<&'static str> {
 }
 
 pub(super) fn downloader(data_root: &FsPath) -> Downloader {
-    Downloader::new(data_root.join("native-music-runtimes"))
+    Downloader::in_folder(data_root, "native-music-runtimes")
 }
 
 fn installed_by(downloader: &Downloader, runtime: &Runtime) -> Option<PathBuf> {
     let record_path = downloader.record_of(&runtime.asset);
-    if install_record::matches(&record_path, runtime.asset.url, downloader.root()) != Some(true)
+    if install_record::matches(&record_path, runtime.asset.url, &downloader.root()) != Some(true)
         || install_record::read(&record_path)?.sha256 != runtime.pin.sha256
     {
         return None;
@@ -462,7 +462,7 @@ mod tests {
                 &corrupt,
                 folder,
                 &downloads.record_of(&runtime.asset),
-                downloads.root()
+                &downloads.root()
             )
             .unwrap()
             .is_err()

@@ -1,3 +1,4 @@
 [toolchain]
-channel = "stable-x86_64-pc-windows-msvc"
+# Debian: "stable" zamiast "stable-x86_64-pc-windows-msvc", który na Linuksie się nie zbuduje
+channel = "stable"
 components = ["rustfmt", "clippy"]

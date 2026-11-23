@@ -66,6 +66,139 @@ fn new_key() -> String {
     format!("{}{}", uuid::Uuid::now_v7().simple(), uuid::Uuid::now_v7().simple())
 }
 
+/// The file in the data folder that holds the key of the local API.
+pub const LOCAL_KEY_FILE: &str = "local-api-key";
+
+/// The key every request from this computer carries as well (Debian hardening): without it any program of any
+/// account on the computer could drive the studio, write files where it names and start a program as an agent CLI.
+/// It is kept in the data folder, readable by its owner only, so an agent's configuration keeps working across
+/// restarts; `YUE_LOCAL_API_KEY` sets it instead, and `YUE_LOCAL_API_OPEN=1` turns the check off (development).
+pub fn local_key() -> String {
+    static KEY: OnceLock<String> = OnceLock::new();
+    KEY.get_or_init(|| {
+        if let Some(key) = std::env::var("YUE_LOCAL_API_KEY").ok().map(|key| key.trim().to_string()).filter(|key| !key.is_empty()) {
+            return key;
+        }
+        let Some(path) = crate::studio_data_root().map(|root| root.join(LOCAL_KEY_FILE)) else { return new_key() };
+        if let Some(key) = read_key(&path) {
+            return key;
+        }
+        let key = new_key();
+        match write_key(&path, &key) {
+            Ok(()) => key,
+            // another process of the studio wrote it first: take that one
+            Err(_) => read_key(&path).unwrap_or(key),
+        }
+    })
+    .clone()
+}
+
+fn read_key(path: &std::path::Path) -> Option<String> {
+    std::fs::read_to_string(path).ok().map(|key| key.trim().to_string()).filter(|key| key.len() >= 32)
+}
+
+fn write_key(path: &std::path::Path, key: &str) -> std::io::Result<()> {
+    use std::io::Write;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    options.open(path)?.write_all(key.as_bytes())
+}
+
+fn local_check_off() -> bool {
+    std::env::var("YUE_LOCAL_API_OPEN").is_ok_and(|value| value.trim() == "1")
+}
+
+/// The local key a request from this computer carries: `?studio_key=`, the `studio_local_key` cookie, the
+/// `X-Studio-Key` header or a bearer token.
+fn carried_local_key(request: &Request) -> (Option<String>, bool) {
+    let from_query = request.uri().query().and_then(|query| query.split('&').find_map(|pair| pair.strip_prefix("studio_key=")).map(str::to_string));
+    let in_query = from_query.is_some();
+    let header_value = |name: &str| request.headers().get(name).and_then(|value| value.to_str().ok()).map(str::to_string);
+    let from_cookie = header_value("cookie").and_then(|cookies| cookies.split(';').find_map(|pair| pair.trim().strip_prefix("studio_local_key=")).map(str::to_string));
+    let from_header = header_value("x-studio-key");
+    let from_bearer = header_value("authorization").and_then(|value| value.strip_prefix("Bearer ").map(str::to_string));
+    (from_query.or(from_header).or(from_bearer).or(from_cookie), in_query)
+}
+
+/// The request without `studio_key` in its address, so no handler sees it or writes it to a log.
+fn without_local_key(mut request: Request) -> Request {
+    let Some(query) = request.uri().query() else { return request };
+    if !query.split('&').any(|pair| pair.starts_with("studio_key=")) {
+        return request;
+    }
+    let rest: Vec<&str> = query.split('&').filter(|pair| !pair.starts_with("studio_key=")).collect();
+    let path = request.uri().path();
+    let target = if rest.is_empty() { path.to_string() } else { format!("{path}?{}", rest.join("&")) };
+    if let Ok(uri) = target.parse() {
+        *request.uri_mut() = uri;
+    }
+    request
+}
+
+/// Lets a request from this computer in only with the local key. `/health` stays open: it says only that the
+/// service is up. A page opened with the key in its address (the audio editor, a browser tab) gets it as a cookie.
+async fn local_guard(request: Request, next: Next) -> Response {
+    if local_check_off() || request.uri().path() == "/health" {
+        return next.run(request).await;
+    }
+    let (carried, in_query) = carried_local_key(&request);
+    if !carried.is_some_and(|key| same(&key, &local_key())) {
+        return (StatusCode::UNAUTHORIZED, "the local API key is missing or wrong (the key is in the studio's data folder, file local-api-key)").into_response();
+    }
+    let page = request.method() == axum::http::Method::GET
+        && request.headers().get(header::ACCEPT).and_then(|value| value.to_str().ok()).is_some_and(|accept| accept.contains("text/html"));
+    if in_query && page {
+        let location = without_local_key(request).uri().to_string();
+        return Response::builder()
+            .status(StatusCode::SEE_OTHER)
+            .header(header::LOCATION, location)
+            .header(header::SET_COOKIE, format!("studio_local_key={}; Path=/; HttpOnly; SameSite=Strict", local_key()))
+            .body(axum::body::Body::empty())
+            .unwrap_or_else(|_| StatusCode::INTERNAL_SERVER_ERROR.into_response());
+    }
+    match without_key_in_body(without_local_key(request)).await {
+        Ok(request) => next.run(request).await,
+        Err(response) => response,
+    }
+}
+
+/// The key taken out of the addresses a JSON body carries (a reference track, a file to save): what the window
+/// sends is kept in the library and written into files' tags, and the key must never end up there.
+async fn without_key_in_body(request: Request) -> Result<Request, Response> {
+    let json = request.headers().get(header::CONTENT_TYPE).and_then(|value| value.to_str().ok()).is_some_and(|kind| kind.starts_with("application/json"));
+    if !json {
+        return Ok(request);
+    }
+    let (mut parts, body) = request.into_parts();
+    let bytes = axum::body::to_bytes(body, 64 << 20).await.map_err(|_| (StatusCode::PAYLOAD_TOO_LARGE, "the request is too large").into_response())?;
+    let key = local_key();
+    let text = String::from_utf8_lossy(&bytes);
+    if !text.contains(key.as_str()) {
+        return Ok(Request::from_parts(parts, axum::body::Body::from(bytes)));
+    }
+    let scrubbed = scrub_key(&text, &key);
+    parts.headers.remove(header::CONTENT_LENGTH);
+    Ok(Request::from_parts(parts, axum::body::Body::from(scrubbed)))
+}
+
+/// Every `studio_key=<key>` out of the text, plain or percent-encoded inside another address, the `?` and `&`
+/// around it put right; a key left anywhere else is blanked.
+fn scrub_key(text: &str, key: &str) -> String {
+    let mut out = text.to_string();
+    for (amp, question, equals) in [("&", "?", "="), ("%26", "%3F", "%3D"), ("%26", "%3f", "%3d"), ("\\u0026", "?", "=")] {
+        let pair = format!("studio_key{equals}{key}");
+        out = out.replace(&format!("{amp}{pair}"), "");
+        out = out.replace(&format!("{question}{pair}{amp}"), question);
+        out = out.replace(&format!("{question}{pair}"), "");
+    }
+    out.replace(key, "")
+}
+
 /// The addresses of this computer another one on the network reaches it at.
 fn local_addresses() -> Vec<String> {
     // the address the system would send from, without sending anything
@@ -206,7 +339,7 @@ pub async fn guard(ConnectInfo(peer): ConnectInfo<SocketAddr>, request: Request,
             eprintln!("[ERROR] refused {} {}: asked for as {}, not 127.0.0.1 or localhost", request.method(), request.uri().path(), shown(header::HOST));
             return (StatusCode::FORBIDDEN, "The studio answers this computer at 127.0.0.1 or localhost only.").into_response();
         }
-        return next.run(request).await;
+        return local_guard(request, next).await;
     }
     let access = current();
     if !access.enabled || access.key.is_empty() {
@@ -273,6 +406,88 @@ pub async fn interface(request: Request) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_local_key_is_read_from_every_place_and_stripped_from_the_address() {
+        let request = |uri: &str, headers: &[(&str, &str)]| {
+            let mut builder = axum::http::Request::builder().uri(uri);
+            for (name, value) in headers {
+                builder = builder.header(*name, *value);
+            }
+            builder.body(axum::body::Body::empty()).unwrap()
+        };
+        assert_eq!(carried_local_key(&request("/v1/a?x=1&studio_key=abc", &[])), (Some("abc".into()), true));
+        assert_eq!(carried_local_key(&request("/v1/a", &[("authorization", "Bearer k1")])).0.as_deref(), Some("k1"));
+        assert_eq!(carried_local_key(&request("/v1/a", &[("x-studio-key", "k2")])).0.as_deref(), Some("k2"));
+        assert_eq!(carried_local_key(&request("/v1/a", &[("cookie", "a=b; studio_local_key=k3")])).0.as_deref(), Some("k3"));
+        assert_eq!(carried_local_key(&request("/v1/a", &[])).0, None);
+        assert_eq!(without_local_key(request("/v1/a?x=1&studio_key=abc&y=2", &[])).uri().to_string(), "/v1/a?x=1&y=2");
+        assert_eq!(without_local_key(request("/v1/a?studio_key=abc", &[])).uri().to_string(), "/v1/a");
+        assert_eq!(without_local_key(request("/v1/a?x=1", &[])).uri().to_string(), "/v1/a?x=1");
+    }
+
+    #[tokio::test]
+    async fn the_guard_wants_the_local_key_from_this_computer() {
+        use tower::ServiceExt;
+        let app = axum::Router::new()
+            .route("/v1/x", axum::routing::get(|uri: axum::http::Uri| async move { uri.to_string() }))
+            .route("/health", axum::routing::get(|| async { "up" }))
+            .layer(axum::middleware::from_fn(guard));
+        let call = |uri: String, headers: Vec<(&'static str, String)>| {
+            let app = app.clone();
+            async move {
+                let mut builder = axum::http::Request::builder().uri(uri).header("host", "127.0.0.1:8791");
+                for (name, value) in headers {
+                    builder = builder.header(name, value);
+                }
+                let mut request = builder.body(axum::body::Body::empty()).unwrap();
+                request.extensions_mut().insert(ConnectInfo::<SocketAddr>("127.0.0.1:40000".parse().unwrap()));
+                let response = app.oneshot(request).await.unwrap();
+                let status = response.status();
+                let cookie = response.headers().get(header::SET_COOKIE).map(|value| value.to_str().unwrap().to_string());
+                let body = axum::body::to_bytes(response.into_body(), 1 << 16).await.unwrap();
+                (status, String::from_utf8_lossy(&body).into_owned(), cookie)
+            }
+        };
+        let key = local_key();
+        assert_eq!(call("/v1/x".into(), vec![]).await.0, StatusCode::UNAUTHORIZED, "no key, no entry");
+        assert_eq!(call("/v1/x?studio_key=wrong".into(), vec![]).await.0, StatusCode::UNAUTHORIZED);
+        assert_eq!(call("/health".into(), vec![]).await.0, StatusCode::OK, "health stays open");
+        let (status, body, _) = call(format!("/v1/x?a=1&studio_key={key}"), vec![]).await;
+        assert_eq!((status, body.as_str()), (StatusCode::OK, "/v1/x?a=1"), "the key never reaches the handler");
+        assert_eq!(call("/v1/x".into(), vec![("authorization", format!("Bearer {key}"))]).await.0, StatusCode::OK);
+        let (status, _, cookie) = call(format!("/v1/x?studio_key={key}"), vec![("accept", "text/html".into())]).await;
+        assert_eq!(status, StatusCode::SEE_OTHER, "a page gets the key as a cookie");
+        assert!(cookie.unwrap().starts_with(&format!("studio_local_key={key};")));
+        assert_eq!(call("/v1/x".into(), vec![("cookie", format!("studio_local_key={key}"))]).await.0, StatusCode::OK);
+    }
+
+    #[test]
+    fn the_key_is_scrubbed_out_of_addresses_in_a_body() {
+        let k = "k".repeat(64);
+        let body = format!(r#"{{"a":"http://127.0.0.1:8791/v1/m/1?v=2&studio_key={k}","b":"http://127.0.0.1:8791/v1/m/2?studio_key={k}&v=3","c":"http://127.0.0.1:8791/v1/m/3?studio_key={k}","d":"/editor/index.html?audioUrl=http%3A%2F%2F127.0.0.1%3A8791%2Fv1%2Fm%2F4%3Fstudio_key%3D{k}"}}"#);
+        let clean = scrub_key(&body, &k);
+        assert!(!clean.contains(&k), "{clean}");
+        assert!(clean.contains(r#""a":"http://127.0.0.1:8791/v1/m/1?v=2""#), "{clean}");
+        assert!(clean.contains(r#""b":"http://127.0.0.1:8791/v1/m/2?v=3""#), "{clean}");
+        assert!(clean.contains(r#""c":"http://127.0.0.1:8791/v1/m/3""#), "{clean}");
+        assert!(clean.contains("%2Fv1%2Fm%2F4\""), "{clean}");
+    }
+
+    #[test]
+    fn the_local_key_file_is_private_and_never_replaced() {
+        let folder = std::env::temp_dir().join(format!("yue-local-key-{}", uuid::Uuid::now_v7().simple()));
+        let path = folder.join(LOCAL_KEY_FILE);
+        write_key(&path, &new_key()).unwrap();
+        assert!(write_key(&path, "other").is_err(), "an existing key is kept");
+        assert_eq!(read_key(&path).map(|key| key.len()), Some(64));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+        }
+        let _ = std::fs::remove_dir_all(folder);
+    }
 
     #[test]
     fn a_forwarded_request_is_not_this_computer() {

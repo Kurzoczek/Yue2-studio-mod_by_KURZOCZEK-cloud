@@ -1,3 +1,5 @@
+mod common;
+
 use anyhow::{Context, Result};
 use reqwest::{Client, RequestBuilder, StatusCode, multipart};
 use serde_json::{Value, json};
@@ -54,6 +56,7 @@ async fn desktop_save_contract_runs_through_http_with_unicode_paths() -> Result<
     let base = format!("http://{address}");
     drop(socket);
     let mut service = Command::new(std::env::current_exe()?)
+        .env("YUE_LOCAL_API_KEY", common::TEST_KEY)
         .args([
             "--ignored",
             "--exact",
@@ -67,7 +70,7 @@ async fn desktop_save_contract_runs_through_http_with_unicode_paths() -> Result<
         .env("YUE_SAVE_TEST_FOLDER", &output)
         .kill_on_drop(true)
         .spawn()?;
-    let client = Client::builder()
+    let client = common::keyed()
         .no_proxy()
         .timeout(Duration::from_secs(30))
         .build()?;
