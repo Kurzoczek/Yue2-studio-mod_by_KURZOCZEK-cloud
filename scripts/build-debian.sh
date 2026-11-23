@@ -5,12 +5,12 @@
 #
 #   sudo bash scripts/build-debian.sh            (z folderu źródeł)
 #
-# Zmienne (opcjonalnie): BUILD_USER=kurzoczek  BUILD_JOBS=2  NO_INSTALL=1
+# Zmienne (opcjonalnie): BUILD_USER=<konto>  BUILD_JOBS=2  NO_INSTALL=1
 # Silnik YuE2 sam dobiera liczbę równoległych kompilacji do wolnego RAM-u (YUE_BUILD_JOBS ją ogranicza).
 set -euo pipefail
 
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
-BUILD_USER="${BUILD_USER:-${SUDO_USER:-kurzoczek}}"
+BUILD_USER="${BUILD_USER:-${SUDO_USER:-}}"
 BUILD_JOBS="${BUILD_JOBS:-2}"          # 8 GB RAM: więcej równoległych kompilacji = ryzyko braku pamięci
 WORK="$SRC/.debian-build"
 
@@ -62,6 +62,7 @@ fi
 
 # ============================ ETAP ROOTA ============================
 [ "$(id -u)" -eq 0 ] || { echo "Uruchom jako root: sudo bash $0"; exit 1; }
+[ -n "$BUILD_USER" ] || { echo "Ustaw BUILD_USER=... albo uruchom skrypt przez sudo z konta użytkownika."; exit 1; }
 id "$BUILD_USER" >/dev/null 2>&1 || { echo "Nie ma użytkownika $BUILD_USER — ustaw BUILD_USER=..."; exit 1; }
 
 log "[1/4] Pakiety Debiana"
