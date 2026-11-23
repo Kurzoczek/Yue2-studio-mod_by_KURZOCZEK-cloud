@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds YuE2 Studio for Linux x86-64: a .deb and an AppImage with the pinned
+# Builds YuE2 Studio for Linux x86-64: .deb, .rpm and AppImage bundles with the pinned
 # yue2.cpp engine on Vulkan and CUDA 13 and the audio-to-MIDI transcriber bundled. Model weights are downloaded in the app.
 set -euo pipefail
 
@@ -76,6 +76,7 @@ version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
 packages=()
 # Debian: BUNDLES=deb builds the .deb alone
 [[ ",${BUNDLES:-deb,appimage}," == *,deb,* ]] && packages+=("$bundle/deb/${product}_${version}_amd64.deb")
+[[ ",${BUNDLES:-deb,appimage}," == *,rpm,* ]] && packages+=("$bundle"/rpm/*.rpm)
 [[ ",${BUNDLES:-deb,appimage}," == *,appimage,* ]] && packages+=("$bundle/appimage/${product}_${version}_amd64.AppImage")
 for package in "${packages[@]}"; do
     test -s "$package" || { echo "Missing package: $package" >&2; exit 1; }

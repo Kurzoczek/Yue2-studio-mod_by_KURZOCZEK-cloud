@@ -55,9 +55,9 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFBNkU1RkQ0RThFNkNFMkEKUldRcXp1Ym8xRjl1R3VaSTRiVTNhVnNzRFFkaGFGMkNzbFRCL1J3TDdTY3JSaVZuT1FRT2pkZGQK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ5MjJDMUI1OTM0Mjc0QzUKUldURmRFS1R0Y0VpU2JRb2xrYi9Ba214aXBBN1lsSXg5Q3VaN05pZVBPTmt1ZS9LL05qV3FnQ3QK",
       "endpoints": [
-        "https://github.com/timoncool/YuE2-Studio/releases/latest/download/latest.json"
+        "https://github.com/Kurzoczek/Yue2-studio-mod_by_KURZOCZEK/releases/latest/download/latest.json"
       ],
       "windows": {
         "installMode": "passive"

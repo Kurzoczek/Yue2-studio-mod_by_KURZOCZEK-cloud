@@ -4,11 +4,18 @@ param(
     [string]$ReleaseNotes = "",
     [ValidateSet('auto', 'cuda', 'vulkan', 'all')]
     [string]$RuntimeBackend = 'all',
+    [string]$Repository = $env:YUE_RELEASE_REPOSITORY,
     # The CUDA 12 toolkit of the engine's second CUDA backend.
     [string]$Cuda12Root = $env:CUDA_PATH_V12_9
 )
 
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($Repository)) {
+    $Repository = 'Kurzoczek/Yue2-studio-mod_by_KURZOCZEK'
+}
+if ($Repository -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') {
+    throw "Repository must be in owner/name format, not '$Repository'."
+}
 
 # The version is written in desktop/src-tauri/tauri.conf.json and nowhere else.
 $configuredVersion = (Get-Content -Raw (Join-Path $PSScriptRoot '..\desktop\src-tauri\tauri.conf.json') | ConvertFrom-Json).version
@@ -110,6 +117,7 @@ try {
     $config = Get-Content -Raw $templatePath
     $config = $config.Replace('__TAURI_UPDATER_PUBKEY__', $env:TAURI_UPDATER_PUBKEY)
     $config = $config.Replace('__RELEASE_VERSION__', $Version)
+    $config = $config.Replace('__RELEASE_REPOSITORY__', $Repository)
     [System.IO.File]::WriteAllText($releaseConfigPath, $config, (New-Object System.Text.UTF8Encoding($false)))
 
     Push-Location $desktopRoot
@@ -165,7 +173,7 @@ try {
         platforms = [ordered]@{
             'windows-x86_64' = [ordered]@{
                 signature = $signature
-                url = "https://github.com/timoncool/YuE2-Studio/releases/download/v$Version/$assetName"
+                url = "https://github.com/$Repository/releases/download/v$Version/$assetName"
             }
         }
     }
