@@ -196,9 +196,10 @@ pub fn folder_for(category: &str) -> Option<PathBuf> {
     }
 }
 
-/// An XDG user folder (`MUSIC`, `DOWNLOAD`) as `user-dirs.dirs` names it, else `~/Music`, `~/Downloads`.
+/// An XDG user folder (`MUSIC`, `DOWNLOAD`) as `user-dirs.dirs` names it, else `~/Music`, `~/Downloads`
+/// (on Windows `%USERPROFILE%\Music`, `%USERPROFILE%\Downloads`).
 fn xdg_user_dir(kind: &str, fallback: &str) -> Option<PathBuf> {
-    let home = std::env::var_os("HOME").map(PathBuf::from)?;
+    let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).map(PathBuf::from)?;
     let config = std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from).unwrap_or_else(|| home.join(".config"));
     let wanted = format!("XDG_{kind}_DIR=");
     if let Ok(text) = std::fs::read_to_string(config.join("user-dirs.dirs")) {
@@ -314,10 +315,10 @@ pub fn browse_start(category: &str, typed: Option<&str>) -> Option<PathBuf> {
     let existing = |path: PathBuf| path.ancestors().find(|folder| folder.is_dir()).map(Path::to_path_buf);
     typed
         .map(str::trim)
-        .filter(|folder| folder.starts_with('/'))
+        .filter(|folder| Path::new(folder).is_absolute())
         .and_then(|folder| existing(PathBuf::from(folder)))
         .or_else(|| default_for(category).and_then(existing))
-        .or_else(|| std::env::var_os("HOME").map(PathBuf::from))
+        .or_else(|| std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).map(PathBuf::from))
 }
 
 /// The dialog's title for a kind, so the person sees what the folder is for.
