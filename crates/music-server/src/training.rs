@@ -2656,7 +2656,7 @@ mod tests {
         std::fs::write(&previous, b"previous trainer").unwrap();
         crate::install_record::write(
             &previous_record, PREVIOUS_TRAINER.url, crate::pin_sha::sha256(PREVIOUS_TRAINER.url).unwrap(),
-            std::slice::from_ref(&previous), downloader.root(),
+            std::slice::from_ref(&previous), &downloader.root(),
         ).unwrap();
         for asset in pack().iter().filter(|asset| asset.kind == AssetKind::Model) {
             let file = downloader.path_of(asset);
@@ -2698,7 +2698,7 @@ mod tests {
         std::fs::write(&program, b"current trainer").unwrap();
         crate::install_record::write(
             &record, current.url, crate::pin_sha::sha256(current.url).unwrap(),
-            std::slice::from_ref(&program), downloader.root(),
+            std::slice::from_ref(&program), &downloader.root(),
         ).unwrap();
         let restarted = Training::new(data.path(), "yue2");
         let (executable, identity) = restarted.select_trainer(None, Some(&saved), true).await.unwrap();

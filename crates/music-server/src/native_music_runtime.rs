@@ -406,7 +406,7 @@ mod tests {
             previous.pin.url,
             previous.pin.sha256,
             &files,
-            downloads.root(),
+            &downloads.root(),
         )
         .unwrap();
         let fallback = installed(root.path(), engine).unwrap();
