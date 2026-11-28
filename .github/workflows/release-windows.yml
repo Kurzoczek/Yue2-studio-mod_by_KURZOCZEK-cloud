@@ -47,6 +47,13 @@ jobs:
           }
           "VULKAN_SDK=$sdk" >> $env:GITHUB_ENV
           "$sdk\Bin" >> $env:GITHUB_PATH
+      - name: Install interface and Tauri dependencies
+        shell: pwsh
+        run: |
+          npm ci --prefix app --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw 'npm ci failed in app.' }
+          npm ci --prefix desktop --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw 'npm ci failed in desktop.' }
       - name: Build, test, and sign the installer
         shell: pwsh
         env:
