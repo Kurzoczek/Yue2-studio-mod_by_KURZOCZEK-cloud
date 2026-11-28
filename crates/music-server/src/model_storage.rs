@@ -989,7 +989,7 @@ mod tests {
     #[test]
     fn a_folder_an_older_studio_left_behind_a_link_is_moved_and_the_link_goes() {
         let (root, data) = data("legacy");
-        let old = root.join("old disk/YuE2 Studio models");
+        let old = root.join("old disk").join("YuE2 Studio models");
         fs::create_dir_all(&old).unwrap();
         fs::rename(data.join("models"), old.join("models")).unwrap();
         make_link(&old.join("models"), &data.join("models")).unwrap();

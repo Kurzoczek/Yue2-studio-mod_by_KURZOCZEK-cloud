@@ -175,9 +175,13 @@ mod tests {
     fn a_line_is_read_only_when_it_is_a_full_path() {
         let root = std::env::temp_dir().join(format!("data-line-{}", uuid::Uuid::now_v7()));
         fs::create_dir_all(&root).unwrap();
-        fs::write(root.join("a"), "/media/usb/yue2-studio\nanything\n").unwrap();
+        #[cfg(windows)]
+        let full = r"D:\usb\yue2-studio";
+        #[cfg(not(windows))]
+        let full = "/media/usb/yue2-studio";
+        fs::write(root.join("a"), format!("{full}\nanything\n")).unwrap();
         fs::write(root.join("b"), "relative/path\n").unwrap();
-        assert_eq!(read_line(&root.join("a")), Some(PathBuf::from("/media/usb/yue2-studio")));
+        assert_eq!(read_line(&root.join("a")), Some(PathBuf::from(full)));
         assert_eq!(read_line(&root.join("b")), None);
         assert_eq!(read_line(&root.join("missing")), None);
         fs::remove_dir_all(root).ok();
